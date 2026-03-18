@@ -127,7 +127,7 @@ export default function PlanEditorPage() {
   async function handleUpdateGroup(group: PlanGroup) {
     try {
       const result = await api.setPlanGroup(campaign, {
-        content_type: group.content_type,
+        content_types: group.content_types,
         region: group.region,
         count: group.count,
         group: group.name,
@@ -155,7 +155,7 @@ export default function PlanEditorPage() {
     const name = `group-${Date.now().toString(36)}`;
     try {
       const result = await api.setPlanGroup(campaign, {
-        content_type: null,
+        content_types: [config!.content_types[0]],
         group: name,
       });
       setGroups(result.plan.groups);

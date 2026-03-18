@@ -29,19 +29,42 @@ export function GroupCard({ group, config, onUpdate, onRemove, disabled }: Group
         </Button>
       </div>
 
-      <div className="grid grid-cols-2 gap-2">
-        <div>
-          <label className="text-xs text-muted-foreground">Content Type</label>
+      <div>
+        <label className="text-xs text-muted-foreground">
+          Content Types ({group.content_types.length} post{group.content_types.length !== 1 ? "s" : ""}/day)
+        </label>
+        <div className="flex flex-wrap gap-1.5 mt-1">
+          {group.content_types.map((ct, idx) => (
+            <span
+              key={idx}
+              className="inline-flex items-center gap-1 rounded-md border bg-accent/50 px-2 py-1 text-sm"
+            >
+              {ct}
+              <button
+                type="button"
+                className="ml-0.5 text-muted-foreground hover:text-foreground disabled:opacity-50"
+                onClick={() => {
+                  const next = group.content_types.filter((_, i) => i !== idx);
+                  onUpdate({ ...group, content_types: next });
+                }}
+                disabled={disabled || group.content_types.length <= 1}
+              >
+                <X className="h-3 w-3" />
+              </button>
+            </span>
+          ))}
           <select
-            className="w-full h-11 rounded-md border border-input bg-background px-3 text-sm"
-            value={group.content_type ?? "rotation"}
+            className="h-8 rounded-md border border-input bg-background px-2 text-sm"
+            value=""
             onChange={(e) => {
-              const val = e.target.value === "rotation" ? null : e.target.value;
-              onUpdate({ ...group, content_type: val });
+              if (e.target.value) {
+                onUpdate({ ...group, content_types: [...group.content_types, e.target.value] });
+                e.target.value = "";
+              }
             }}
             disabled={disabled}
           >
-            <option value="rotation">Rotation</option>
+            <option value="">+ Add...</option>
             {config.content_types.map((ct) => (
               <option key={ct} value={ct}>
                 {ct}
@@ -49,7 +72,9 @@ export function GroupCard({ group, config, onUpdate, onRemove, disabled }: Group
             ))}
           </select>
         </div>
+      </div>
 
+      <div className="grid grid-cols-2 gap-2">
         <div>
           <label className="text-xs text-muted-foreground">Region</label>
           <select
@@ -69,22 +94,22 @@ export function GroupCard({ group, config, onUpdate, onRemove, disabled }: Group
             ))}
           </select>
         </div>
-      </div>
 
-      <div>
-        <label className="text-xs text-muted-foreground">Count (optional)</label>
-        <Input
-          type="number"
-          min={1}
-          placeholder="All"
-          value={group.count ?? ""}
-          onChange={(e) => {
-            const val = e.target.value ? parseInt(e.target.value) : undefined;
-            onUpdate({ ...group, count: val });
-          }}
-          disabled={disabled}
-          className="h-11"
-        />
+        <div>
+          <label className="text-xs text-muted-foreground">Count (optional)</label>
+          <Input
+            type="number"
+            min={1}
+            placeholder="All"
+            value={group.count ?? ""}
+            onChange={(e) => {
+              const val = e.target.value ? parseInt(e.target.value) : undefined;
+              onUpdate({ ...group, count: val });
+            }}
+            disabled={disabled}
+            className="h-11"
+          />
+        </div>
       </div>
     </div>
   );

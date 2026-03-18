@@ -77,15 +77,15 @@ Current plan and paused creators.
     "campaign": "unlove",
     "updated_at": "2026-03-18T19:20:00",
     "groups": [
-      {"name": "est-demo", "content_type": "demo-reframe-check-social-media", "region": "EST"},
-      {"name": "default", "content_type": null}
+      {"name": "est-demo", "content_types": ["demo-reframe-check-social-media"], "region": "EST"},
+      {"name": "default", "content_types": ["meme"]}
     ]
   },
   "paused_creators": ["vanessa-a"]
 }
 ```
 
-`content_type: null` means rotation (uses the campaign's rotation pattern).
+The length of `content_types` determines the posts per day for that group. For example, `["meme", "demo-reframe"]` means 2 posts/day (one of each type).
 
 ---
 
@@ -96,30 +96,30 @@ Add or update a plan group.
 **Body:**
 ```json
 {
-  "content_type": "meme",
+  "content_types": ["meme", "demo-reframe-check-social-media"],
   "region": "EST",
   "count": 5,
-  "group": "est-meme"
+  "group": "est-mixed"
 }
 ```
 
 | Field | Required | Description |
 |---|---|---|
-| `content_type` | Yes | Content type name, `"rotation"`, or `null` for rotation |
+| `content_types` | Yes | List of content type names. Length = posts per day for this group. |
 | `region` | No | Filter creators by region (`"EST"`, `"AEST"`, `"CET"`) |
 | `count` | No | Limit number of creators in this group |
-| `group` | No | Group name (defaults to content_type name, or `"default"`) |
+| `group` | No | Group name (defaults to first content type name, or `"default"`) |
 
 **Response:**
 ```json
 {
-  "message": "Updated group 'est-meme'",
+  "message": "Updated group 'est-mixed'",
   "plan": {
     "campaign": "unlove",
     "updated_at": "2026-03-18T19:25:00",
     "groups": [
-      {"name": "est-meme", "content_type": "meme", "region": "EST", "count": 5},
-      {"name": "default", "content_type": null}
+      {"name": "est-mixed", "content_types": ["meme", "demo-reframe-check-social-media"], "region": "EST", "count": 5},
+      {"name": "default", "content_types": ["meme"]}
     ]
   }
 }
@@ -144,7 +144,7 @@ Remove a specific group from the plan.
     "campaign": "unlove",
     "updated_at": "2026-03-18T19:30:00",
     "groups": [
-      {"name": "default", "content_type": null}
+      {"name": "default", "content_types": ["meme"]}
     ]
   }
 }
@@ -164,7 +164,7 @@ Reset to campaign default plan.
     "campaign": "unlove",
     "updated_at": "2026-03-18T19:30:00",
     "groups": [
-      {"name": "default", "content_type": null}
+      {"name": "default", "content_types": ["meme"]}
     ]
   }
 }
@@ -190,24 +190,24 @@ Preview tomorrow's creator assignments with the current plan.
   "paused": 1,
   "groups": {
     "est-demo": [
-      {"creator": "alice-c", "group": "est-demo", "content_type": "demo-reframe-check-social-media", "region": "EST", "action": "post"},
-      {"creator": "jess-w", "group": "est-demo", "content_type": "demo-reframe-check-social-media", "region": "EST", "action": "post"}
+      {"creator": "alice-c", "group": "est-demo", "content_types": ["demo-reframe-check-social-media"], "region": "EST", "action": "post"},
+      {"creator": "jess-w", "group": "est-demo", "content_types": ["demo-reframe-check-social-media"], "region": "EST", "action": "post"}
     ],
     "default": [
-      {"creator": "abby-m", "group": "default", "content_type": null, "region": "AEST", "action": "post"}
+      {"creator": "abby-m", "group": "default", "content_types": ["meme"], "region": "AEST", "action": "post"}
     ],
     "rest": [
-      {"creator": "brooke-p", "group": "rest", "content_type": null, "region": "AEST", "action": "rest"}
+      {"creator": "brooke-p", "group": "rest", "content_types": [], "region": "AEST", "action": "rest"}
     ],
     "paused": [
-      {"creator": "vanessa-a", "group": "paused", "content_type": null, "region": "AEST", "action": "paused"}
+      {"creator": "vanessa-a", "group": "paused", "content_types": [], "region": "AEST", "action": "paused"}
     ]
   },
   "assignments": {
-    "abby-m": {"group": "default", "content_type": null, "region": "AEST", "action": "post"},
-    "alice-c": {"group": "est-demo", "content_type": "demo-reframe-check-social-media", "region": "EST", "action": "post"},
-    "brooke-p": {"group": "rest", "content_type": null, "region": "AEST", "action": "rest"},
-    "vanessa-a": {"group": "paused", "content_type": null, "region": "AEST", "action": "paused"}
+    "abby-m": {"group": "default", "content_types": ["meme"], "region": "AEST", "action": "post"},
+    "alice-c": {"group": "est-demo", "content_types": ["demo-reframe-check-social-media"], "region": "EST", "action": "post"},
+    "brooke-p": {"group": "rest", "content_types": [], "region": "AEST", "action": "rest"},
+    "vanessa-a": {"group": "paused", "content_types": [], "region": "AEST", "action": "paused"}
   }
 }
 ```
@@ -341,7 +341,7 @@ Recent daily cycle history summaries.
         }
       },
       "plan_snapshot": {
-        "groups": [{"name": "default", "content_type": null}]
+        "groups": [{"name": "default", "content_types": ["meme"]}]
       }
     }
   ]
@@ -354,12 +354,12 @@ Recent daily cycle history summaries.
   "date": "2026-03-18",
   "campaign": "unlove",
   "plan_snapshot": {
-    "groups": [{"name": "default", "content_type": null}]
+    "groups": [{"name": "default", "content_types": ["meme"]}]
   },
   "assignments": {
-    "abby-m": {"group": "default", "content_type": null, "region": "AEST", "action": "post", "status": "posted", "scheduled": 2},
-    "brooke-p": {"group": "default", "content_type": null, "region": "AEST", "action": "post", "status": "failed", "error": "generation failed"},
-    "chloe-b": {"group": "rest", "content_type": null, "region": "AEST", "action": "rest", "status": "rest"}
+    "abby-m": {"group": "default", "content_types": ["meme"], "region": "AEST", "action": "post", "status": "posted", "scheduled": 2},
+    "brooke-p": {"group": "default", "content_types": ["meme"], "region": "AEST", "action": "post", "status": "failed", "error": "generation failed"},
+    "chloe-b": {"group": "rest", "content_types": [], "region": "AEST", "action": "rest", "status": "rest"}
   },
   "summary": {
     "total": 30,

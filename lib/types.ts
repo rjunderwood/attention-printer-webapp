@@ -17,7 +17,7 @@ export interface CampaignConfig {
 
 export interface PlanGroup {
   name: string;
-  content_type: string | null;
+  content_types: string[];
   region?: string;
   count?: number;
 }
@@ -35,7 +35,7 @@ export interface PlanResponse {
 }
 
 export interface PlanSetRequest {
-  content_type: string | null;
+  content_types: string[];
   region?: string;
   count?: number;
   group?: string;
@@ -44,7 +44,7 @@ export interface PlanSetRequest {
 export interface PreviewAssignment {
   creator: string;
   group: string;
-  content_type: string | null;
+  content_types: string[];
   region: string;
   action: "post" | "rest" | "paused";
 }
@@ -131,7 +131,7 @@ export interface HistoryResponse {
 
 export interface HistoryDetailAssignment {
   group: string;
-  content_type: string | null;
+  content_types: string[];
   region: string;
   action: string;
   status: string;

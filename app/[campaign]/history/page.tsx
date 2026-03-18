@@ -54,7 +54,7 @@ export default function HistoryPage() {
     const serialize = (groups: typeof history[0]["plan_snapshot"]["groups"]) =>
       JSON.stringify(
         groups
-          .map((g) => ({ name: g.name, content_type: g.content_type }))
+          .map((g) => ({ name: g.name, content_types: g.content_types }))
           .sort((a, b) => a.name.localeCompare(b.name))
       );
     return serialize(history[idx].plan_snapshot.groups) !== serialize(history[idx + 1].plan_snapshot.groups);

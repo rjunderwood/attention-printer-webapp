@@ -402,6 +402,62 @@ Check text pack content levels across all creators.
 
 ---
 
+## Failures
+
+### GET /api/{campaign}/failures
+
+List open (unacknowledged) post failures. Failures are detected by the orchestrator's hourly check and deduplicated — each failure appears only once.
+
+**Response:**
+```json
+{
+  "campaign": "unlove",
+  "failures": [
+    {
+      "post_bridge_id": "pb_abc123",
+      "platform": "tiktok",
+      "creator": "alice-c",
+      "media_id": "5",
+      "error": "File access error: content no longer available",
+      "error_category": "content_rejected",
+      "scheduled_at": "2026-03-18T14:00:00+00:00",
+      "detected_at": "2026-03-18T15:00:05",
+      "status": "open"
+    }
+  ],
+  "count": 1
+}
+```
+
+---
+
+### POST /api/{campaign}/failures/{failure_key}/acknowledge
+
+Acknowledge (dismiss) a single failure. The `failure_key` is `{post_bridge_id}:{platform}` (e.g., `pb_abc123:tiktok`). Acknowledged failures will not re-appear.
+
+**Response (success):**
+```json
+{"message": "Acknowledged 'pb_abc123:tiktok'"}
+```
+
+**Response (not found):**
+```json
+{"error": "Failure 'pb_abc123:tiktok' not found in open failures"}
+```
+
+---
+
+### POST /api/{campaign}/failures/acknowledge-all
+
+Acknowledge all open failures at once.
+
+**Response:**
+```json
+{"message": "Acknowledged 3 failures", "count": 3}
+```
+
+---
+
 ## Orchestrator Status
 
 ### GET /api/orchestrator/status

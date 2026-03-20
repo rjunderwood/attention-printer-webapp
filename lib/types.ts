@@ -147,6 +147,24 @@ export interface HistoryDetail {
   summary: HistorySummary;
 }
 
+export interface Failure {
+  post_bridge_id: string;
+  platform: string;
+  creator: string;
+  media_id: string;
+  error: string;
+  error_category: string;
+  scheduled_at: string;
+  detected_at: string;
+  status: string;
+}
+
+export interface FailuresResponse {
+  campaign: string;
+  failures: Failure[];
+  count: number;
+}
+
 export interface OrchestratorStatus {
   last_main_run: string;
   last_main_run_minutes_ago: number;

@@ -83,6 +83,21 @@ export const api = {
   getContentLevels: (campaign: string) =>
     request<import("./types").ContentLevels>(`/${campaign}/content-levels`),
 
+  getFailures: (campaign: string) =>
+    request<import("./types").FailuresResponse>(`/${campaign}/failures`),
+
+  acknowledgeFailure: (campaign: string, failureKey: string) =>
+    request<{ message: string }>(
+      `/${campaign}/failures/${encodeURIComponent(failureKey)}/acknowledge`,
+      { method: "POST" }
+    ),
+
+  acknowledgeAllFailures: (campaign: string) =>
+    request<{ message: string; count: number }>(
+      `/${campaign}/failures/acknowledge-all`,
+      { method: "POST" }
+    ),
+
   getOrchestratorStatus: () =>
     request<import("./types").OrchestratorStatus>("/orchestrator/status"),
 };

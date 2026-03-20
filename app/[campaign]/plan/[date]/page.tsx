@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useCallback, useRef } from "react";
+import { useEffect, useState, useCallback, useRef, useMemo } from "react";
 import { useParams } from "next/navigation";
 import { GroupList } from "@/components/plan/GroupList";
 import { PreviewPanel } from "@/components/plan/PreviewPanel";
@@ -193,6 +193,35 @@ export default function PlanEditorPage() {
     }
   }
 
+  // Cross-reference preview assignments with content levels to compute readiness per group
+  const groupReadiness = useMemo(() => {
+    if (!preview || !contentLevels) return {};
+
+    const exhaustedMap = new Map<string, Set<string>>();
+    for (const e of contentLevels.exhausted) {
+      if (!exhaustedMap.has(e.creator)) exhaustedMap.set(e.creator, new Set());
+      exhaustedMap.get(e.creator)!.add(e.text_type);
+    }
+
+    const result: Record<string, { ready: number; total: number }> = {};
+    for (const [name, creators] of Object.entries(preview.groups)) {
+      if (name === "rest" || name === "paused") continue;
+      const posting = creators.filter((c) => c.action === "post");
+      if (posting.length === 0) continue;
+
+      let totalPosts = 0;
+      let readyPosts = 0;
+      for (const c of posting) {
+        for (const ct of c.content_types) {
+          totalPosts++;
+          if (!exhaustedMap.get(c.creator)?.has(ct)) readyPosts++;
+        }
+      }
+      result[name] = { ready: readyPosts, total: totalPosts };
+    }
+    return result;
+  }, [preview, contentLevels]);
+
   if (loading) {
     return (
       <div className="space-y-4 animate-pulse pb-20">
@@ -226,11 +255,12 @@ export default function PlanEditorPage() {
           onAddGroup={handleAddGroup}
           onReset={handleReset}
           disabled={confirming}
+          readiness={groupReadiness}
         />
       )}
 
       {/* Live Preview */}
-      <PreviewPanel preview={preview} loading={previewLoading} />
+      <PreviewPanel preview={preview} loading={previewLoading} contentLevels={contentLevels} />
 
       {/* Content Warnings */}
       <ContentWarnings levels={contentLevels} />

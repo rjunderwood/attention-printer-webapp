@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from "react";
 import { Badge } from "@/components/ui/badge";
-import type { PlanPreview } from "@/lib/types";
+import type { PlanPreview, ContentLevels } from "@/lib/types";
 import { ChevronDown, ChevronUp } from "lucide-react";
 
 const colorPalette = [
@@ -17,11 +17,29 @@ const colorPalette = [
 export function PreviewPanel({
   preview,
   loading,
+  contentLevels,
 }: {
   preview: PlanPreview | null;
   loading: boolean;
+  contentLevels?: ContentLevels | null;
 }) {
   const [expanded, setExpanded] = useState(false);
+
+  // Build exhausted/low lookup from content levels
+  const issueMap = useMemo(() => {
+    const exhausted = new Map<string, Set<string>>();
+    const low = new Map<string, Set<string>>();
+    if (!contentLevels) return { exhausted, low };
+    for (const e of contentLevels.exhausted) {
+      if (!exhausted.has(e.creator)) exhausted.set(e.creator, new Set());
+      exhausted.get(e.creator)!.add(e.text_type);
+    }
+    for (const e of contentLevels.low) {
+      if (!low.has(e.creator)) low.set(e.creator, new Set());
+      low.get(e.creator)!.add(e.text_type);
+    }
+    return { exhausted, low };
+  }, [contentLevels]);
 
   // Derive group colors per render based on current preview groups
   const groupColorMap = useMemo(() => {
@@ -99,12 +117,19 @@ export function PreviewPanel({
                 </Badge>
               </div>
               <div className="flex flex-wrap gap-1">
-                {creators.map((c) => (
-                  <span key={c.creator} className="text-xs px-1.5 py-0.5 bg-white/60 rounded">
-                    {c.creator}
-                    <span className="text-muted-foreground ml-1">{c.region}</span>
-                  </span>
-                ))}
+                {creators.map((c) => {
+                  const hasExhausted = c.content_types.some((ct) => issueMap.exhausted.get(c.creator)?.has(ct));
+                  const hasLow = !hasExhausted && c.content_types.some((ct) => issueMap.low.get(c.creator)?.has(ct));
+                  return (
+                    <span key={c.creator} className="text-xs px-1.5 py-0.5 bg-white/60 rounded inline-flex items-center gap-1">
+                      {(hasExhausted || hasLow) && (
+                        <span className={`inline-block h-1.5 w-1.5 rounded-full ${hasExhausted ? "bg-red-500" : "bg-yellow-500"}`} />
+                      )}
+                      {c.creator}
+                      <span className="text-muted-foreground">{c.region}</span>
+                    </span>
+                  );
+                })}
               </div>
             </div>
           ))}

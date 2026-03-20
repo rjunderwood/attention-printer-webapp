@@ -11,13 +11,28 @@ interface GroupCardProps {
   onUpdate: (group: PlanGroup) => void;
   onRemove: () => void;
   disabled?: boolean;
+  readiness?: { ready: number; total: number };
 }
 
-export function GroupCard({ group, config, onUpdate, onRemove, disabled }: GroupCardProps) {
+export function GroupCard({ group, config, onUpdate, onRemove, disabled, readiness }: GroupCardProps) {
   return (
     <div className="rounded-lg border p-3 space-y-3">
       <div className="flex items-center justify-between">
-        <span className="text-sm font-medium">{group.name}</span>
+        <div className="flex items-center gap-2">
+          <span className="text-sm font-medium">{group.name}</span>
+          {readiness && (
+            <span className="flex items-center gap-1 text-xs text-muted-foreground">
+              <span
+                className={`inline-block h-2 w-2 rounded-full ${
+                  readiness.ready === readiness.total
+                    ? "bg-green-500"
+                    : "bg-red-500"
+                }`}
+              />
+              {readiness.ready}/{readiness.total} ready
+            </span>
+          )}
+        </div>
         <Button
           variant="ghost"
           size="icon"

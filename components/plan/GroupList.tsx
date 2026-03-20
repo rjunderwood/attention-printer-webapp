@@ -13,6 +13,7 @@ interface GroupListProps {
   onAddGroup: () => void;
   onReset: () => void;
   disabled?: boolean;
+  readiness?: Record<string, { ready: number; total: number }>;
 }
 
 export function GroupList({
@@ -23,6 +24,7 @@ export function GroupList({
   onAddGroup,
   onReset,
   disabled,
+  readiness,
 }: GroupListProps) {
   return (
     <div className="space-y-3">
@@ -48,6 +50,7 @@ export function GroupList({
           onUpdate={onUpdateGroup}
           onRemove={() => onRemoveGroup(group.name)}
           disabled={disabled}
+          readiness={readiness?.[group.name]}
         />
       ))}
 

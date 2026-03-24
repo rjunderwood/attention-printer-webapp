@@ -129,6 +129,38 @@ export default function CampaignOverview() {
         </Link>
       )}
 
+      {orchestrator?.creator_status && (() => {
+        const statuses = Object.values(orchestrator.creator_status);
+        const critical = statuses.filter((s) => s.days_available <= 3).length;
+        const warning = statuses.filter((s) => s.days_available > 3 && s.days_available <= 7).length;
+        if (critical === 0 && warning === 0) return null;
+        return (
+          <Link href={`/${campaign}/capacity`}>
+            <Card className="hover:bg-accent/50 transition-colors">
+              <CardContent className="p-4">
+                <div className="flex items-center justify-between">
+                  <span className="text-sm font-medium">Creator Capacity</span>
+                  {critical > 0 ? (
+                    <Badge variant="outline" className="bg-red-100 text-red-800">
+                      {critical} critical
+                    </Badge>
+                  ) : (
+                    <Badge variant="outline" className="bg-orange-100 text-orange-800">
+                      {warning} low
+                    </Badge>
+                  )}
+                </div>
+                <p className="text-sm text-muted-foreground mt-1">
+                  {critical > 0 && `${critical} creators with \u22643 days`}
+                  {critical > 0 && warning > 0 && " · "}
+                  {warning > 0 && `${warning} creators with 4\u20137 days`}
+                </p>
+              </CardContent>
+            </Card>
+          </Link>
+        );
+      })()}
+
       {history.length > 0 && (
         <Card>
           <CardContent className="p-4 space-y-2">

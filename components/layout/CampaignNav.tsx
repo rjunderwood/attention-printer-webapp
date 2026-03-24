@@ -10,6 +10,7 @@ const tabs = [
   { label: "Creators", path: "/creators" },
   { label: "History", path: "/history" },
   { label: "Content", path: "/content" },
+  { label: "Capacity", path: "/capacity" },
   { label: "Failures", path: "/failures" },
 ];
 

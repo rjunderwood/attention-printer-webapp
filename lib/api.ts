@@ -62,9 +62,10 @@ export const api = {
   getCreators: (campaign: string) =>
     request<import("./types").CreatorsResponse>(`/${campaign}/creators`),
 
-  pauseCreator: (campaign: string, name: string) =>
+  pauseCreator: (campaign: string, name: string, reason?: string) =>
     request<{ message: string }>(`/${campaign}/creators/${name}/pause`, {
       method: "POST",
+      body: JSON.stringify(reason ? { reason } : {}),
     }),
 
   resumeCreator: (campaign: string, name: string) =>

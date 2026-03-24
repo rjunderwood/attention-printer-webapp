@@ -88,6 +88,8 @@ export interface Creator {
   name: string;
   region: string;
   active: boolean;
+  inactive_reason?: string;
+  profile_picture_url: string;
 }
 
 export interface CreatorsResponse {

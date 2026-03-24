@@ -21,6 +21,7 @@ export default function CreatorsPage() {
   const [statusFilter, setStatusFilter] = useState("All");
   const [expanded, setExpanded] = useState<string | null>(null);
   const [toggling, setToggling] = useState<string | null>(null);
+  const [pauseReason, setPauseReason] = useState("");
 
   useEffect(() => {
     async function load() {
@@ -44,17 +45,28 @@ export default function CreatorsPage() {
     setToggling(name);
     try {
       if (currentlyActive) {
-        await api.pauseCreator(campaign, name);
+        const reason = pauseReason.trim() || undefined;
+        await api.pauseCreator(campaign, name, reason);
         toast.success(`Paused ${name}`);
+        setCreators((prev) =>
+          prev.map((c) =>
+            c.name === name
+              ? { ...c, active: false, inactive_reason: reason ?? "Manually paused" }
+              : c
+          )
+        );
+        setPauseReason("");
       } else {
         await api.resumeCreator(campaign, name);
         toast.success(`Resumed ${name}`);
+        setCreators((prev) =>
+          prev.map((c) =>
+            c.name === name
+              ? { ...c, active: true, inactive_reason: undefined }
+              : c
+          )
+        );
       }
-      setCreators((prev) =>
-        prev.map((c) =>
-          c.name === name ? { ...c, active: !currentlyActive } : c
-        )
-      );
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Failed to update creator");
     } finally {
@@ -127,10 +139,25 @@ export default function CreatorsPage() {
           <div key={c.name}>
             <button
               className="w-full flex items-center justify-between p-3 rounded-lg hover:bg-accent/50 min-h-[48px] text-left"
-              onClick={() => setExpanded(expanded === c.name ? null : c.name)}
+              onClick={() => {
+                setExpanded(expanded === c.name ? null : c.name);
+                setPauseReason("");
+              }}
             >
-              <div className="flex items-center gap-2">
-                <span className="text-sm font-medium">{c.name}</span>
+              <div className="flex items-center gap-3">
+                <img
+                  src={`${c.profile_picture_url}`}
+                  alt={c.name}
+                  className="w-9 h-9 rounded-full object-cover bg-muted flex-shrink-0"
+                />
+                <div className="flex flex-col">
+                  <span className="text-sm font-medium">{c.name}</span>
+                  {!c.active && c.inactive_reason && (
+                    <span className="text-xs text-muted-foreground">
+                      {c.inactive_reason}
+                    </span>
+                  )}
+                </div>
                 <Badge variant="outline" className="text-xs">
                   {c.region}
                 </Badge>
@@ -148,7 +175,15 @@ export default function CreatorsPage() {
             </button>
 
             {expanded === c.name && (
-              <div className="px-3 pb-3">
+              <div className="px-3 pb-3 space-y-2">
+                {c.active && (
+                  <Input
+                    placeholder="Pause reason (optional)"
+                    value={pauseReason}
+                    onChange={(e) => setPauseReason(e.target.value)}
+                    className="h-10"
+                  />
+                )}
                 <Button
                   size="sm"
                   variant={c.active ? "destructive" : "default"}

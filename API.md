@@ -282,18 +282,42 @@ List all creators with region and active status.
 {
   "campaign": "unlove",
   "creators": [
-    {"name": "abby-m", "region": "AEST", "active": true},
-    {"name": "alice-c", "region": "EST", "active": true},
-    {"name": "vanessa-a", "region": "AEST", "active": false}
+    {"name": "abby-m", "region": "AEST", "active": true, "profile_picture_url": "http://127.0.0.1:5000/api/unlove/creators/abby-m/profile-picture"},
+    {"name": "alice-c", "region": "EST", "active": true, "profile_picture_url": "http://127.0.0.1:5000/api/unlove/creators/alice-c/profile-picture"},
+    {"name": "vanessa-a", "region": "AEST", "active": false, "inactive_reason": "Text exhausted: meme", "profile_picture_url": "http://127.0.0.1:5000/api/unlove/creators/vanessa-a/profile-picture"}
   ]
 }
 ```
+
+The `inactive_reason` field is only present when `active` is `false`. Possible values:
+- `"Text exhausted: {content_type}"` — auto-paused by orchestrator when text pack ran out
+- `"Permanent error: {error_message}"` — auto-paused due to platform error (e.g., account restricted)
+- `"Manually paused"` — paused via API or CLI
+- `"Unknown"` — paused before reason tracking was added
+```
+
+---
+
+### GET /api/{campaign}/creators/{name}/profile-picture
+
+Serve a creator's profile picture as a JPEG image. Can be used directly in `<img>` tags. This endpoint is exempt from authentication so browsers can load images directly.
+
+**Response:** `image/jpeg` binary data (200), or 404 if no profile picture exists.
+
+The `profile_picture_url` returned by `GET /api/{campaign}/creators` is an absolute URL pointing to this endpoint, so it can be used directly as an `<img src>`.
 
 ---
 
 ### POST /api/{campaign}/creators/{name}/pause
 
 Pause a creator. They'll be excluded from future daily cycles.
+
+**Body (optional):**
+```json
+{"reason": "Account under review"}
+```
+
+If no reason is provided, defaults to `"Manually paused"`.
 
 **Response:**
 ```json

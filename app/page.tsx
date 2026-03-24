@@ -66,8 +66,8 @@ export default function DashboardPage() {
 
   if (loading) {
     return (
-      <div className="p-4 max-w-2xl mx-auto space-y-4">
-        <h1 className="text-lg font-semibold">Attention Printer</h1>
+      <div className="p-6 space-y-4">
+        <h1 className="text-lg font-semibold">Dashboard</h1>
         <div className="animate-pulse space-y-3">
           {[1, 2].map((i) => (
             <div key={i} className="h-32 bg-muted rounded-lg" />
@@ -78,8 +78,8 @@ export default function DashboardPage() {
   }
 
   return (
-    <div className="p-4 max-w-2xl mx-auto space-y-4">
-      <h1 className="text-lg font-semibold">Attention Printer</h1>
+    <div className="p-6 space-y-4">
+      <h1 className="text-lg font-semibold">Dashboard</h1>
 
       {campaigns.length === 0 && (
         <p className="text-sm text-muted-foreground">No campaigns found.</p>

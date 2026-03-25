@@ -105,10 +105,15 @@ Add or update a plan group.
 
 | Field | Required | Description |
 |---|---|---|
-| `content_types` | Yes | List of content type names. Length = posts per day for this group. |
+| `content_types` | Yes | List of content type names defined in `campaign.json`. Length = posts per day for this group. |
 | `region` | No | Filter creators by region (`"EST"`, `"AEST"`, `"CET"`) |
 | `count` | No | Limit number of creators in this group |
 | `group` | No | Group name (defaults to first content type name, or `"default"`) |
+
+All content types are validated against the campaign config. Unknown types return 400:
+```json
+{"error": "Unknown content type(s): fake-type. Available: demo, list, meme, ..."}
+```
 
 **Response:**
 ```json
@@ -275,26 +280,35 @@ Use `refresh: true` after adjusting the plan to re-resolve assignments with the 
 
 ### GET /api/{campaign}/creators
 
-List all creators with region and active status.
+List all creators with region and status.
 
 **Response:**
 ```json
 {
   "campaign": "unlove",
   "creators": [
-    {"name": "abby-m", "region": "AEST", "active": true, "profile_picture_url": "http://127.0.0.1:5000/api/unlove/creators/abby-m/profile-picture"},
-    {"name": "alice-c", "region": "EST", "active": true, "profile_picture_url": "http://127.0.0.1:5000/api/unlove/creators/alice-c/profile-picture"},
-    {"name": "vanessa-a", "region": "AEST", "active": false, "inactive_reason": "Text exhausted: meme", "profile_picture_url": "http://127.0.0.1:5000/api/unlove/creators/vanessa-a/profile-picture"}
+    {"name": "abby-m", "region": "AEST", "status": "active", "profile_picture_url": "http://127.0.0.1:5000/api/unlove/creators/abby-m/profile-picture"},
+    {"name": "bianca-b", "region": "AEST", "status": "account_warmup", "warmup_device": 3, "inactive_reason": "Unknown", "profile_picture_url": "http://127.0.0.1:5000/api/unlove/creators/bianca-b/profile-picture"},
+    {"name": "vanessa-a", "region": "AEST", "status": "paused", "inactive_reason": "Text exhausted: meme", "profile_picture_url": "http://127.0.0.1:5000/api/unlove/creators/vanessa-a/profile-picture"}
   ]
 }
 ```
 
-The `inactive_reason` field is only present when `active` is `false`. Possible values:
+The `warmup_device` field is only present for creators that have a device assigned (those in `account_warmup` or `posting_warmup` status).
+
+The `status` field indicates the creator's current state. Possible values:
+- `"active"` — fully active, posting normally
+- `"posting_warmup"` — active but in posting warmup phase
+- `"paused"` — temporarily paused from posting
+- `"account_warmup"` — new account being warmed up
+- `"pending"` — newly created, not yet set up
+- `"archived"` — permanently retired
+
+The `inactive_reason` field is only present when status is not `"active"` or `"posting_warmup"`. Possible values:
 - `"Text exhausted: {content_type}"` — auto-paused by orchestrator when text pack ran out
 - `"Permanent error: {error_message}"` — auto-paused due to platform error (e.g., account restricted)
 - `"Manually paused"` — paused via API or CLI
 - `"Unknown"` — paused before reason tracking was added
-```
 
 ---
 
@@ -333,6 +347,247 @@ Resume a paused creator.
 **Response:**
 ```json
 {"message": "Resumed 'vanessa-a'"}
+```
+
+---
+
+## Warmup
+
+### POST /api/{campaign}/creators/{name}/warmup/start
+
+Start account warmup for a creator. Sets status to `account_warmup`, records the physical device number and start date.
+
+**Body:**
+```json
+{"device": 3}
+```
+
+| Field | Required | Description |
+|---|---|---|
+| `device` | Yes | Physical device number (1-14) the account is being warmed up on |
+
+**Response:**
+```json
+{"message": "Started account warmup for 'bianca-b' on device 3"}
+```
+
+---
+
+### POST /api/{campaign}/creators/{name}/warmup/promote
+
+Promote a creator from `account_warmup` to `posting_warmup`. Records the account warmup completion date and posting warmup start date.
+
+**Body (optional):**
+```json
+{"device": 5}
+```
+
+If `device` is provided, the creator's `warmup_device` is updated (for when a creator moves to a different physical device).
+
+**Response:**
+```json
+{"message": "Promoted 'bianca-b' to posting warmup (moved to device 5)"}
+```
+
+---
+
+### POST /api/{campaign}/creators/{name}/warmup/post
+
+Record a warmup post. After 10 posts, the creator is automatically promoted to `active`.
+
+**Body (optional):**
+```json
+{"date": "2026-03-25"}
+```
+
+If no date is provided, defaults to today.
+
+**Response:**
+```json
+{
+  "message": "Recorded warmup post for 'bianca-b'",
+  "promoted": false,
+  "progress": {
+    "status": "posting_warmup",
+    "account_warmup": {"started_at": "2026-03-15", "completed_at": "2026-03-23"},
+    "posting_warmup": {
+      "started_at": "2026-03-23",
+      "completed_at": null,
+      "target_posts": 10,
+      "posts_completed": 3,
+      "posts": ["2026-03-23", "2026-03-24", "2026-03-25"]
+    }
+  }
+}
+```
+
+When `promoted` is `true`, the creator's status has been set to `active` and `posting_warmup.completed_at` will be populated.
+
+---
+
+### GET /api/{campaign}/creators/{name}/warmup
+
+Get warmup progress for a creator.
+
+**Response:**
+```json
+{
+  "creator": "bianca-b",
+  "campaign": "unlove",
+  "status": "posting_warmup",
+  "warmup_device": 3,
+  "account_warmup": {"started_at": "2026-03-15", "completed_at": "2026-03-23"},
+  "posting_warmup": {
+    "started_at": "2026-03-23",
+    "completed_at": null,
+    "target_posts": 10,
+    "posts_completed": 3,
+    "posts": ["2026-03-23", "2026-03-24", "2026-03-25"]
+  }
+}
+```
+
+---
+
+## Warmup Posting
+
+### GET /api/{campaign}/warmup-posting
+
+List warmup posting folders for a date. Returns all scheduled warmup posts with per-platform status, device info, and posting times.
+
+**Query params:**
+- `date` (optional): `YYYY-MM-DD`, defaults to today (AEST)
+
+**Response:**
+```json
+{
+  "date": "2026-03-26",
+  "posts": [
+    {
+      "creator": "bianca-b",
+      "device_id": "iphone7_1",
+      "media_id": 5,
+      "media_format": "ugc-video",
+      "region": "AEST",
+      "folder": "post_1_11:00AM AEST",
+      "all_posted": false,
+      "platforms": [
+        {
+          "platform": "instagram",
+          "account_id": "40476",
+          "scheduled_at": "2026-03-26T11:00:00+11:00",
+          "posted": false,
+          "failed": false,
+          "error": null
+        },
+        {
+          "platform": "tiktok",
+          "account_id": "40479",
+          "scheduled_at": "2026-03-26T13:15:00+11:00",
+          "posted": true,
+          "failed": false,
+          "error": null
+        }
+      ]
+    },
+    {
+      "creator": "bianca-b",
+      "device_id": "iphone7_1",
+      "media_id": 6,
+      "media_format": "ugc-video",
+      "region": "AEST",
+      "folder": "post_2_08:30PM AEST",
+      "all_posted": false,
+      "platforms": [
+        {
+          "platform": "instagram",
+          "account_id": "40476",
+          "scheduled_at": "2026-03-26T20:30:00+11:00",
+          "posted": false,
+          "failed": false,
+          "error": null
+        }
+      ]
+    }
+  ]
+}
+```
+
+Posts are sorted by date → device → creator → post folder. Use `folder` and `platform` values when calling `mark-posted` to target specific posts.
+
+---
+
+### POST /api/{campaign}/warmup-posting/mark-posted
+
+Mark warmup posts as manually posted after posting from your phone. Supports per-platform granularity — you can mark one platform at a time or all at once.
+
+Warmup progress is only recorded when ALL platforms on a post are marked as posted. After reaching `target_posts` (default 10), the creator is automatically promoted to `active`.
+
+**Body:**
+
+| Field | Required | Description |
+|---|---|---|
+| `creator` | Yes | Creator name |
+| `date` | No | Date `YYYY-MM-DD` (default: today AEST) |
+| `folder` | No | Specific post folder name (e.g. `"post_1_11:00AM AEST"`) |
+| `platform` | No | Specific platform (e.g. `"instagram"`) |
+
+**Examples:**
+
+Mark one platform on one post:
+```json
+{"creator": "bianca-b", "folder": "post_1_11:00AM AEST", "platform": "instagram"}
+```
+
+Mark all platforms on one post:
+```json
+{"creator": "bianca-b", "folder": "post_1_11:00AM AEST"}
+```
+
+Mark everything for a date:
+```json
+{"creator": "bianca-b", "date": "2026-03-26"}
+```
+
+Mark everything for today:
+```json
+{"creator": "bianca-b"}
+```
+
+**Response:**
+```json
+{
+  "message": "Marked 1 post(s) for bianca-b",
+  "results": [
+    {
+      "creator": "bianca-b",
+      "media_id": 5,
+      "folder": "post_1_11:00AM AEST",
+      "platforms_marked": ["instagram"],
+      "all_posted": false,
+      "promoted": false
+    }
+  ],
+  "progress": {
+    "status": "posting_warmup",
+    "warmup_device": 0,
+    "account_warmup": {"started_at": "2026-03-15", "completed_at": "2026-03-23"},
+    "posting_warmup": {
+      "started_at": "2026-03-23",
+      "completed_at": null,
+      "target_posts": 10,
+      "posts_completed": 3,
+      "posts": ["2026-03-23", "2026-03-24", "2026-03-25"]
+    }
+  }
+}
+```
+
+When `all_posted` is `true`, the post folder is deleted and warmup progress incremented. When `promoted` is `true`, the creator has reached their target and been set to `active`.
+
+**Response (not found):**
+```json
+{"error": "No unposted warmup posts found for bianca-b folder 'post_1_11:00AM AEST' on 2026-03-26"}
 ```
 
 ---

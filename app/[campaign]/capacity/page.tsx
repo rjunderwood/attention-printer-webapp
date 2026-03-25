@@ -11,7 +11,7 @@ import { toast } from "sonner";
 type CreatorCapacity = {
   name: string;
   region: string;
-  active: boolean;
+  creatorStatus: import("@/lib/types").CreatorStatus;
   profile_picture_url: string;
   status: string;
   max_posts_possible: number;
@@ -69,7 +69,7 @@ export default function CapacityPage() {
       .map((c): CreatorCapacity => ({
         name: c.name,
         region: c.region,
-        active: c.active,
+        creatorStatus: c.status,
         profile_picture_url: c.profile_picture_url,
         ...statuses[c.name],
       }))
@@ -152,9 +152,9 @@ export default function CapacityPage() {
                   <Badge variant="outline" className="text-xs flex-shrink-0">
                     {c.region}
                   </Badge>
-                  {!c.active && (
+                  {c.creatorStatus !== "active" && c.creatorStatus !== "posting_warmup" && (
                     <Badge variant="outline" className="text-xs bg-red-100 text-red-800 flex-shrink-0">
-                      Paused
+                      {c.creatorStatus === "paused" ? "Paused" : c.creatorStatus.replace("_", " ")}
                     </Badge>
                   )}
                 </div>

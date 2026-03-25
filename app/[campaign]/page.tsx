@@ -14,6 +14,7 @@ import type {
   ContentLevels,
   HistoryEntry,
   OrchestratorStatus,
+  Creator,
 } from "@/lib/types";
 import { toast } from "sonner";
 
@@ -25,6 +26,7 @@ export default function CampaignOverview() {
   const [history, setHistory] = useState<HistoryEntry[]>([]);
   const [preview, setPreview] = useState<PlanPreview | null>(null);
   const [orchestrator, setOrchestrator] = useState<OrchestratorStatus | null>(null);
+  const [creators, setCreators] = useState<Creator[]>([]);
   const [loading, setLoading] = useState(true);
   const [confirming, setConfirming] = useState(false);
 
@@ -34,13 +36,14 @@ export default function CampaignOverview() {
 
   async function loadData() {
     try {
-      const [cfg, sts, prev, cl, hist, orch] = await Promise.allSettled([
+      const [cfg, sts, prev, cl, hist, orch, crt] = await Promise.allSettled([
         api.getConfig(campaign),
         api.getStatus(campaign),
         api.getPreview(campaign),
         api.getContentLevels(campaign),
         api.getHistory(campaign, 3),
         api.getOrchestratorStatus(),
+        api.getCreators(campaign),
       ]);
       if (cfg.status === "fulfilled") setConfig(cfg.value);
       if (sts.status === "fulfilled") setStatus(sts.value);
@@ -48,6 +51,7 @@ export default function CampaignOverview() {
       if (cl.status === "fulfilled") setContentLevels(cl.value);
       if (hist.status === "fulfilled") setHistory(hist.value.history);
       if (orch.status === "fulfilled") setOrchestrator(orch.value);
+      if (crt.status === "fulfilled") setCreators(crt.value.creators);
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Failed to load");
     } finally {
@@ -128,6 +132,34 @@ export default function CampaignOverview() {
           </Card>
         </Link>
       )}
+
+      {(() => {
+        const warmupCreators = creators.filter(
+          (c) => c.status === "account_warmup" || c.status === "posting_warmup"
+        );
+        if (warmupCreators.length === 0) return null;
+        const acct = warmupCreators.filter((c) => c.status === "account_warmup").length;
+        const posting = warmupCreators.filter((c) => c.status === "posting_warmup").length;
+        return (
+          <Link href={`/${campaign}/creators?status=Warmup`}>
+            <Card className="hover:bg-accent/50 transition-colors">
+              <CardContent className="p-4">
+                <div className="flex items-center justify-between">
+                  <span className="text-sm font-medium">Creators in Warmup</span>
+                  <Badge variant="outline" className="bg-blue-100 text-blue-800">
+                    {warmupCreators.length}
+                  </Badge>
+                </div>
+                <p className="text-sm text-muted-foreground mt-1">
+                  {acct > 0 && `${acct} account warmup`}
+                  {acct > 0 && posting > 0 && " · "}
+                  {posting > 0 && `${posting} posting warmup`}
+                </p>
+              </CardContent>
+            </Card>
+          </Link>
+        );
+      })()}
 
       {orchestrator?.creator_status && (() => {
         const statuses = Object.values(orchestrator.creator_status);

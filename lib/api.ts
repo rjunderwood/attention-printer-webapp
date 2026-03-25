@@ -101,4 +101,38 @@ export const api = {
 
   getOrchestratorStatus: () =>
     request<import("./types").OrchestratorStatus>("/orchestrator/status"),
+
+  startWarmup: (campaign: string, name: string, device: number) =>
+    request<{ message: string }>(`/${campaign}/creators/${name}/warmup/start`, {
+      method: "POST",
+      body: JSON.stringify({ device }),
+    }),
+
+  promoteWarmup: (campaign: string, name: string, device?: number) =>
+    request<{ message: string }>(`/${campaign}/creators/${name}/warmup/promote`, {
+      method: "POST",
+      body: JSON.stringify(device ? { device } : {}),
+    }),
+
+  recordWarmupPost: (campaign: string, name: string, date?: string) =>
+    request<import("./types").WarmupPostResponse>(
+      `/${campaign}/creators/${name}/warmup/post`,
+      { method: "POST", body: JSON.stringify(date ? { date } : {}) }
+    ),
+
+  getWarmupProgress: (campaign: string, name: string) =>
+    request<import("./types").WarmupProgress>(
+      `/${campaign}/creators/${name}/warmup`
+    ),
+
+  getWarmupPosting: (campaign: string, date?: string) =>
+    request<import("./types").WarmupPostingResponse>(
+      `/${campaign}/warmup-posting${date ? `?date=${date}` : ""}`
+    ),
+
+  markWarmupPosted: (campaign: string, body: import("./types").MarkPostedRequest) =>
+    request<import("./types").MarkPostedResponse>(
+      `/${campaign}/warmup-posting/mark-posted`,
+      { method: "POST", body: JSON.stringify(body) }
+    ),
 };

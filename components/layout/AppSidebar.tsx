@@ -11,6 +11,7 @@ import {
   FileText,
   AlertTriangle,
   Gauge,
+  Flame,
   Printer,
   Moon,
   Sun,
@@ -39,6 +40,7 @@ const campaignTabs = [
   { label: "Creators", path: "/creators", icon: Users },
   { label: "History", path: "/history", icon: History },
   { label: "Content", path: "/content", icon: FileText },
+  { label: "Warmup", path: "/warmup", icon: Flame },
   { label: "Capacity", path: "/capacity", icon: Gauge },
   { label: "Failures", path: "/failures", icon: AlertTriangle },
 ]

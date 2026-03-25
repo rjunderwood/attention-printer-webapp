@@ -84,11 +84,20 @@ export interface PlanStatus {
   creators_paused?: number;
 }
 
+export type CreatorStatus =
+  | "active"
+  | "posting_warmup"
+  | "paused"
+  | "account_warmup"
+  | "pending"
+  | "archived";
+
 export interface Creator {
   name: string;
   region: string;
-  active: boolean;
+  status: CreatorStatus;
   inactive_reason?: string;
+  warmup_device?: number;
   profile_picture_url: string;
 }
 
@@ -165,6 +174,77 @@ export interface FailuresResponse {
   campaign: string;
   failures: Failure[];
   count: number;
+}
+
+export interface WarmupProgress {
+  creator: string;
+  campaign: string;
+  status: CreatorStatus;
+  warmup_device?: number;
+  account_warmup: {
+    started_at: string | null;
+    completed_at: string | null;
+  };
+  posting_warmup: {
+    started_at: string | null;
+    completed_at: string | null;
+    target_posts: number;
+    posts_completed: number;
+    posts: string[];
+  };
+}
+
+export interface WarmupPostResponse {
+  message: string;
+  promoted: boolean;
+  progress: Omit<WarmupProgress, "creator" | "campaign">;
+}
+
+export interface WarmupPostPlatform {
+  platform: string;
+  account_id: string;
+  scheduled_at: string;
+  posted: boolean;
+  failed: boolean;
+  error: string | null;
+}
+
+export interface WarmupPost {
+  creator: string;
+  device_id: string;
+  media_id: number;
+  media_format: string;
+  region: string;
+  folder: string;
+  all_posted: boolean;
+  platforms: WarmupPostPlatform[];
+}
+
+export interface WarmupPostingResponse {
+  date: string;
+  posts: WarmupPost[];
+}
+
+export interface MarkPostedRequest {
+  creator: string;
+  date?: string;
+  folder?: string;
+  platform?: string;
+}
+
+export interface MarkPostedResult {
+  creator: string;
+  media_id: number;
+  folder: string;
+  platforms_marked: string[];
+  all_posted: boolean;
+  promoted: boolean;
+}
+
+export interface MarkPostedResponse {
+  message: string;
+  results: MarkPostedResult[];
+  progress: Omit<WarmupProgress, "creator" | "campaign">;
 }
 
 export interface OrchestratorStatus {

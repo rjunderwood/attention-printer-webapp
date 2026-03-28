@@ -141,4 +141,58 @@ export const api = {
       `/${campaign}/warmup-posting/mark-posted`,
       { method: "POST", body: JSON.stringify(body) }
     ),
+
+  // Templates
+
+  getTemplates: (campaign: string, status?: string, category?: string) => {
+    const params = new URLSearchParams();
+    if (status) params.set("status", status);
+    if (category) params.set("category", category);
+    const qs = params.toString();
+    return request<import("./types").TemplatesResponse>(
+      `/${campaign}/templates${qs ? `?${qs}` : ""}`
+    );
+  },
+
+  getTemplateDetail: (campaign: string, category: string, name: string) =>
+    request<import("./types").TemplateDetail>(
+      `/${campaign}/templates/${category}/${name}`
+    ),
+
+  updateTemplateConfig: (campaign: string, category: string, name: string, config: Record<string, unknown>) =>
+    request<{ message: string; config: import("./types").VideoConfig }>(
+      `/${campaign}/templates/${category}/${name}/config`,
+      { method: "POST", body: JSON.stringify(config) }
+    ),
+
+  activateTemplate: (campaign: string, category: string, name: string) =>
+    request<{ message: string; status: string }>(
+      `/${campaign}/templates/${category}/${name}/activate`,
+      { method: "POST" }
+    ),
+
+  uploadFixedImage: async (campaign: string, category: string, name: string, slideNum: number, file: File) => {
+    const formData = new FormData();
+    formData.append("file", file);
+    const res = await fetch(`${BASE}/${campaign}/templates/${category}/${name}/slides/${slideNum}/fixed-image`, {
+      method: "POST",
+      body: formData,
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || `Upload failed: ${res.status}`);
+    return data as { message: string; slide: number; template: string };
+  },
+
+  uploadClip: async (campaign: string, name: string, file: File, filename: string) => {
+    const formData = new FormData();
+    formData.append("file", file);
+    formData.append("filename", filename);
+    const res = await fetch(`${BASE}/${campaign}/templates/ugc_video/${name}/clip`, {
+      method: "POST",
+      body: formData,
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || `Upload failed: ${res.status}`);
+    return data as { message: string; filename: string; template: string };
+  },
 };

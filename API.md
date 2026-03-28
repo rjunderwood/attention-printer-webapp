@@ -49,6 +49,7 @@ Campaign configuration metadata. Use this to populate dropdowns, display setting
   "content_types": ["demo", "demo-reframe-check-social-media", "how-it-feels-to", "list", "meme"],
   "regions": ["AEST", "EST", "CET"],
   "platforms": ["tiktok", "instagram", "youtube"],
+  "creator_types": ["ugc_video", "ugc_mixed", "ugc_slideshow", "faceless_video", "faceless_slideshow"],
   "posts_per_day": 2,
   "rest_pattern": [true, true, false],
   "content_low_threshold": 8,
@@ -57,6 +58,10 @@ Campaign configuration metadata. Use this to populate dropdowns, display setting
     "notification_hour": 19,
     "notification_minute": 0,
     "confirmation_window_minutes": 60
+  },
+  "warmup": {
+    "account_warmup_days": 12,
+    "posting_warmup_target_posts": 10
   }
 }
 ```
@@ -98,6 +103,7 @@ Add or update a plan group.
 {
   "content_types": ["meme", "demo-reframe-check-social-media"],
   "region": "EST",
+  "type": "ugc_video",
   "count": 5,
   "group": "est-mixed"
 }
@@ -107,6 +113,7 @@ Add or update a plan group.
 |---|---|---|
 | `content_types` | Yes | List of content type names defined in `campaign.json`. Length = posts per day for this group. |
 | `region` | No | Filter creators by region (`"EST"`, `"AEST"`, `"CET"`) |
+| `type` | No | Filter creators by type (`"ugc_video"`, `"ugc_mixed"`, `"ugc_slideshow"`, `"faceless_video"`, `"faceless_slideshow"`) |
 | `count` | No | Limit number of creators in this group |
 | `group` | No | Group name (defaults to first content type name, or `"default"`) |
 
@@ -123,7 +130,7 @@ All content types are validated against the campaign config. Unknown types retur
     "campaign": "unlove",
     "updated_at": "2026-03-18T19:25:00",
     "groups": [
-      {"name": "est-mixed", "content_types": ["meme", "demo-reframe-check-social-media"], "region": "EST", "count": 5},
+      {"name": "est-mixed", "content_types": ["meme", "demo-reframe-check-social-media"], "region": "EST", "type": "ugc_video", "count": 5},
       {"name": "default", "content_types": ["meme"]}
     ]
   }
@@ -195,24 +202,24 @@ Preview tomorrow's creator assignments with the current plan.
   "paused": 1,
   "groups": {
     "est-demo": [
-      {"creator": "alice-c", "group": "est-demo", "content_types": ["demo-reframe-check-social-media"], "region": "EST", "action": "post"},
-      {"creator": "jess-w", "group": "est-demo", "content_types": ["demo-reframe-check-social-media"], "region": "EST", "action": "post"}
+      {"creator": "alice-c", "group": "est-demo", "content_types": ["demo-reframe-check-social-media"], "region": "EST", "type": "ugc_video", "action": "post"},
+      {"creator": "jess-w", "group": "est-demo", "content_types": ["demo-reframe-check-social-media"], "region": "EST", "type": "ugc_video", "action": "post"}
     ],
     "default": [
-      {"creator": "abby-m", "group": "default", "content_types": ["meme"], "region": "AEST", "action": "post"}
+      {"creator": "abby-m", "group": "default", "content_types": ["meme"], "region": "AEST", "type": "ugc_video", "action": "post"}
     ],
     "rest": [
-      {"creator": "brooke-p", "group": "rest", "content_types": [], "region": "AEST", "action": "rest"}
+      {"creator": "brooke-p", "group": "rest", "content_types": [], "region": "AEST", "type": "ugc_video", "action": "rest"}
     ],
     "paused": [
-      {"creator": "vanessa-a", "group": "paused", "content_types": [], "region": "AEST", "action": "paused"}
+      {"creator": "vanessa-a", "group": "paused", "content_types": [], "region": "AEST", "type": "ugc_video", "action": "paused"}
     ]
   },
   "assignments": {
-    "abby-m": {"group": "default", "content_types": ["meme"], "region": "AEST", "action": "post"},
-    "alice-c": {"group": "est-demo", "content_types": ["demo-reframe-check-social-media"], "region": "EST", "action": "post"},
-    "brooke-p": {"group": "rest", "content_types": [], "region": "AEST", "action": "rest"},
-    "vanessa-a": {"group": "paused", "content_types": [], "region": "AEST", "action": "paused"}
+    "abby-m": {"group": "default", "content_types": ["meme"], "region": "AEST", "type": "ugc_video", "action": "post"},
+    "alice-c": {"group": "est-demo", "content_types": ["demo-reframe-check-social-media"], "region": "EST", "type": "ugc_video", "action": "post"},
+    "brooke-p": {"group": "rest", "content_types": [], "region": "AEST", "type": "ugc_video", "action": "rest"},
+    "vanessa-a": {"group": "paused", "content_types": [], "region": "AEST", "type": "ugc_video", "action": "paused"}
   }
 }
 ```
@@ -287,14 +294,22 @@ List all creators with region and status.
 {
   "campaign": "unlove",
   "creators": [
-    {"name": "abby-m", "region": "AEST", "status": "active", "profile_picture_url": "http://127.0.0.1:5000/api/unlove/creators/abby-m/profile-picture"},
-    {"name": "bianca-b", "region": "AEST", "status": "account_warmup", "warmup_device": 3, "inactive_reason": "Unknown", "profile_picture_url": "http://127.0.0.1:5000/api/unlove/creators/bianca-b/profile-picture"},
-    {"name": "vanessa-a", "region": "AEST", "status": "paused", "inactive_reason": "Text exhausted: meme", "profile_picture_url": "http://127.0.0.1:5000/api/unlove/creators/vanessa-a/profile-picture"}
+    {"name": "abby-m", "region": "AEST", "type": "ugc_video", "status": "active", "profile_picture_url": "http://127.0.0.1:5000/api/unlove/creators/abby-m/profile-picture"},
+    {"name": "bianca-b", "region": "AEST", "type": "ugc_video", "status": "posting_warmup", "warmup_device": 3, "warmup": {"account_warmup": {"started_at": "2026-03-15", "completed_at": "2026-03-23"}, "posting_warmup": {"started_at": "2026-03-23", "completed_at": null, "target_posts": 10, "posts_completed": 3}}, "profile_picture_url": "http://127.0.0.1:5000/api/unlove/creators/bianca-b/profile-picture"},
+    {"name": "vanessa-a", "region": "AEST", "type": "ugc_video", "status": "paused", "inactive_reason": "Text exhausted: meme", "profile_picture_url": "http://127.0.0.1:5000/api/unlove/creators/vanessa-a/profile-picture"}
   ]
 }
 ```
 
 The `warmup_device` field is only present for creators that have a device assigned (those in `account_warmup` or `posting_warmup` status).
+
+The `warmup` field is only present for creators in `account_warmup` or `posting_warmup` status. It contains:
+- `account_warmup.started_at` / `completed_at` — when account warmup began and ended
+- `posting_warmup.started_at` / `completed_at` — when posting warmup began and ended
+- `posting_warmup.target_posts` — number of posts required before promotion to active (from campaign config)
+- `posting_warmup.posts_completed` — number of warmup posts recorded so far
+
+For the full list of individual post dates, use `GET /api/{campaign}/creators/{name}/warmup`.
 
 The `status` field indicates the creator's current state. Possible values:
 - `"active"` — fully active, posting normally
@@ -347,6 +362,31 @@ Resume a paused creator.
 **Response:**
 ```json
 {"message": "Resumed 'vanessa-a'"}
+```
+
+---
+
+### POST /api/{campaign}/creators/{name}/type
+
+Change a creator's type.
+
+**Body:**
+```json
+{"type": "faceless_slideshow"}
+```
+
+| Field | Required | Description |
+|---|---|---|
+| `type` | Yes | One of: `"ugc_video"`, `"ugc_mixed"`, `"ugc_slideshow"`, `"faceless_video"`, `"faceless_slideshow"` |
+
+**Response:**
+```json
+{"message": "Set 'abby-m' type to 'faceless_slideshow'"}
+```
+
+**Response (invalid type):**
+```json
+{"error": "Invalid type 'bad'. Must be one of: ugc_video, ugc_mixed, ugc_slideshow, faceless_video, faceless_slideshow"}
 ```
 
 ---
@@ -636,9 +676,9 @@ Recent daily cycle history summaries.
     "groups": [{"name": "default", "content_types": ["meme"]}]
   },
   "assignments": {
-    "abby-m": {"group": "default", "content_types": ["meme"], "region": "AEST", "action": "post", "status": "posted", "scheduled": 2},
-    "brooke-p": {"group": "default", "content_types": ["meme"], "region": "AEST", "action": "post", "status": "failed", "error": "generation failed"},
-    "chloe-b": {"group": "rest", "content_types": [], "region": "AEST", "action": "rest", "status": "rest"}
+    "abby-m": {"group": "default", "content_types": ["meme"], "region": "AEST", "type": "ugc_video", "action": "post", "status": "posted", "scheduled": 2},
+    "brooke-p": {"group": "default", "content_types": ["meme"], "region": "AEST", "type": "ugc_video", "action": "post", "status": "failed", "error": "generation failed"},
+    "chloe-b": {"group": "rest", "content_types": [], "region": "AEST", "type": "ugc_video", "action": "rest", "status": "rest"}
   },
   "summary": {
     "total": 30,
@@ -772,6 +812,280 @@ Orchestrator daemon state. Useful for monitoring whether the daemon is alive and
 ```
 
 If `last_main_run_minutes_ago` exceeds 120, the orchestrator is likely down.
+
+---
+
+## Templates
+
+### GET /api/{campaign}/templates
+
+List all content templates across all categories.
+
+**Query params:**
+- `status` (optional): Filter by status (e.g. `pending`, `active`)
+- `category` (optional): Filter by category (`faceless_slideshow`, `ugc_slideshow`, `ugc_video`)
+
+**Response:**
+```json
+{
+  "campaign": "unlove",
+  "templates": [
+    {
+      "name": "i-promise-i-wont-call",
+      "category": "faceless_slideshow",
+      "status": "pending",
+      "slide_count": 10
+    },
+    {
+      "name": "7-signs-shes-not-coming-back",
+      "category": "ugc_slideshow",
+      "status": "pending",
+      "slide_count": 9
+    },
+    {
+      "name": "he-came-back",
+      "category": "ugc_video",
+      "status": "pending",
+      "reaction_duration": 4,
+      "clip": "none"
+    }
+  ]
+}
+```
+
+Slideshow templates include `slide_count`. UGC video templates include `reaction_duration` and `clip` type. Templates without a `config.json` or `status` field are treated as `"active"`.
+
+---
+
+### GET /api/{campaign}/templates/{category}/{template_name}
+
+Full template detail including slides, config, writing guide, and validation status.
+
+**Response (slideshow types):**
+```json
+{
+  "campaign": "unlove",
+  "name": "i-promise-i-wont-call",
+  "category": "faceless_slideshow",
+  "status": "pending",
+  "caption": "",
+  "writing_guide": "# Writing Guide: i-promise-i-wont-call\n...",
+  "validation": {"ready": false, "missing": ["slide_10/image/fixed_image.png"]},
+  "slides": [
+    {
+      "slide_number": 1,
+      "image": {
+        "type": "generated_prompt",
+        "prompt": "{\"basic\": \"...\", \"json\": {...}}",
+        "has_reference_image": true,
+        "has_fixed_image": false,
+        "reference_image_url": "http://127.0.0.1:5000/api/unlove/templates/faceless_slideshow/i-promise-i-wont-call/slides/1/reference-image",
+        "fixed_image_url": null
+      },
+      "text": {
+        "position": "center",
+        "text": "i woke up crying{lg}\ni miss you{lg}"
+      }
+    }
+  ]
+}
+```
+
+**Response (ugc_video):**
+```json
+{
+  "campaign": "unlove",
+  "name": "he-came-back",
+  "category": "ugc_video",
+  "status": "pending",
+  "config": {
+    "reaction_duration": 4,
+    "clip": "fixed",
+    "text": {"position": "center", "duration": "all"}
+  },
+  "text": "",
+  "caption": "",
+  "writing_guide": "# Writing Guide: he-came-back\n...",
+  "has_thumbnail": true,
+  "thumbnail_url": "http://127.0.0.1:5000/api/unlove/templates/ugc_video/he-came-back/thumbnail",
+  "clips": [
+    {"filename": "fixed_en.mp4", "url": "http://127.0.0.1:5000/api/unlove/templates/ugc_video/he-came-back/clip/fixed_en.mp4"}
+  ],
+  "clip_requirements": {
+    "type": "fixed",
+    "required_languages": ["de", "en"],
+    "status": [
+      {"filename": "fixed_de.mp4", "present": false},
+      {"filename": "fixed_en.mp4", "present": true}
+    ]
+  },
+  "validation": {"ready": false, "missing": ["clip/fixed_de.mp4"]}
+}
+```
+
+For `clip: "creator"`, `clip_requirements` lists `required_creators` instead of `required_languages`, with one `{creator_name}.mp4` per active ugc_video creator. For `clip: "none"`, `clip_requirements` is `{"type": "none"}`.
+
+---
+
+### GET /api/{campaign}/templates/{category}/{template_name}/slides/{slide_num}/reference-image
+
+Serve a slide's research reference image as JPEG. **Auth-exempt** — can be used in `<img>` tags.
+
+**Response:** `image/jpeg` binary data (200), or 404 if not found.
+
+---
+
+### GET /api/{campaign}/templates/{category}/{template_name}/slides/{slide_num}/fixed-image
+
+Serve a slide's fixed image as PNG. **Auth-exempt** — can be used in `<img>` tags.
+
+**Response:** `image/png` binary data (200), or 404 if not found.
+
+---
+
+### GET /api/{campaign}/templates/ugc_video/{template_name}/thumbnail
+
+Serve a ugc_video template's reference thumbnail as JPEG. **Auth-exempt** — can be used in `<img>` tags.
+
+**Response:** `image/jpeg` binary data (200), or 404 if not found.
+
+---
+
+### GET /api/{campaign}/templates/ugc_video/{template_name}/clip/{filename}
+
+Serve a ugc_video template clip as MP4. **Auth-exempt** — can be used in `<video>` tags.
+
+**Response:** `video/mp4` binary data (200), or 404 if not found.
+
+---
+
+### POST /api/{campaign}/templates/{category}/{template_name}/slides/{slide_num}/fixed-image
+
+Upload a fixed image for a slide. Only applicable to `faceless_slideshow` and `ugc_slideshow` templates, and only for slides where `image/config.json` has `"type": "fixed"`.
+
+**Content-Type:** `multipart/form-data`
+
+| Field | Required | Description |
+|---|---|---|
+| `file` | Yes | The image file (saved as `fixed_image.png`) |
+
+**Response:**
+```json
+{
+  "message": "Uploaded fixed image for slide 10",
+  "slide": 10,
+  "template": "i-promise-i-wont-call"
+}
+```
+
+**Response (wrong slide type):**
+```json
+{"error": "Slide 3 is type 'generated_prompt', not 'fixed'"}
+```
+
+---
+
+### POST /api/{campaign}/templates/ugc_video/{template_name}/clip
+
+Upload a clip for a ugc_video template. Only applicable when clip type is `"fixed"` or `"creator"`.
+
+**Content-Type:** `multipart/form-data`
+
+| Field | Required | Description |
+|---|---|---|
+| `file` | Yes | The `.mp4` video file |
+| `filename` | Yes | Target filename — must follow naming convention (see below) |
+
+**Filename conventions:**
+- For `clip: "fixed"`: `fixed_{lang}.mp4` (e.g. `fixed_en.mp4`, `fixed_de.mp4`). One per language used by active ugc_video creators.
+- For `clip: "creator"`: `{creator_name}.mp4` (e.g. `alice.mp4`, `briana-c.mp4`). Must match an existing creator name.
+
+**Response:**
+```json
+{
+  "message": "Uploaded clip 'fixed_en.mp4'",
+  "filename": "fixed_en.mp4",
+  "template": "he-came-back"
+}
+```
+
+**Response (invalid filename):**
+```json
+{"error": "For clip type 'fixed', filename must match 'fixed_{lang}.mp4' (e.g. fixed_en.mp4). Got: bad_name.mp4"}
+```
+
+**Response (clip type none):**
+```json
+{"error": "This template has clip type 'none' — no clips needed"}
+```
+
+---
+
+### POST /api/{campaign}/templates/{category}/{template_name}/config
+
+Partial update of template config. Merges provided fields into the existing `config.json`. Cannot set status to `"active"` — use the `/activate` endpoint instead.
+
+**Body (ugc_video example):**
+```json
+{
+  "reaction_duration": 5,
+  "clip": "fixed",
+  "text": {"position": "top", "duration": 3.5}
+}
+```
+
+The `text` field is deep-merged: you can update `position` without losing `duration`.
+
+**Response:**
+```json
+{
+  "message": "Updated config for 'he-came-back'",
+  "config": {
+    "status": "pending",
+    "reaction_duration": 5,
+    "clip": "fixed",
+    "text": {"position": "top", "duration": 3.5}
+  }
+}
+```
+
+**Response (trying to activate):**
+```json
+{"error": "Cannot set status to 'active' via config update. Use the /activate endpoint."}
+```
+
+---
+
+### POST /api/{campaign}/templates/{category}/{template_name}/activate
+
+Activate a pending template. Validates all required assets are present before allowing activation.
+
+**Validation rules:**
+- **faceless_slideshow / ugc_slideshow:** Every slide with `"type": "fixed"` must have `fixed_image.png` present.
+- **ugc_video with `clip: "fixed"`:** Must have `fixed_{lang}.mp4` for every language used by active ugc_video creators (e.g. `en`, `de`).
+- **ugc_video with `clip: "creator"`:** Must have `{creator_name}.mp4` for every active ugc_video creator.
+- **ugc_video with `clip: "none"`:** No clip validation required.
+
+**Response (success):**
+```json
+{
+  "message": "Activated template 'i-promise-i-wont-call'",
+  "status": "active"
+}
+```
+
+**Response (missing assets):**
+```json
+{
+  "error": "Cannot activate: missing required assets",
+  "missing": ["slide_10/image/fixed_image.png"]
+}
+```
+
+**Response (already active):**
+```json
+{"error": "Template 'i-promise-i-wont-call' is already active"}
+```
 
 ---
 

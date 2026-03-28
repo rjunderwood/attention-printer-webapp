@@ -21,7 +21,10 @@ async function proxyRequest(req: NextRequest, { params }: { params: Promise<{ pa
   });
 
   const headers: Record<string, string> = {};
-  if (req.method !== "GET") {
+  const contentType = req.headers.get("content-type") || "";
+  const isMultipart = contentType.includes("multipart/form-data");
+
+  if (req.method !== "GET" && !isMultipart) {
     headers["Content-Type"] = "application/json";
   }
   if (PIPELINE_KEY) {
@@ -29,17 +32,32 @@ async function proxyRequest(req: NextRequest, { params }: { params: Promise<{ pa
   }
 
   try {
-    const body = req.method !== "GET" ? await req.text() : undefined;
+    let body: string | FormData | undefined;
+    if (req.method !== "GET") {
+      if (isMultipart) {
+        body = await req.formData();
+      } else {
+        body = await req.text();
+      }
+    }
     const res = await fetch(url.toString(), {
       method: req.method,
       headers,
       ...(body ? { body } : {}),
     });
 
-    const data = await res.text();
+    const resContentType = res.headers.get("content-type") || "";
+    if (resContentType.includes("application/json") || !resContentType) {
+      const data = await res.text();
+      return new NextResponse(data, {
+        status: res.status,
+        headers: { "Content-Type": "application/json" },
+      });
+    }
+    const data = await res.arrayBuffer();
     return new NextResponse(data, {
       status: res.status,
-      headers: { "Content-Type": "application/json" },
+      headers: { "Content-Type": resContentType },
     });
   } catch {
     return NextResponse.json(

@@ -271,6 +271,97 @@ export interface MarkPostedResponse {
   progress: Omit<WarmupProgress, "creator" | "campaign">;
 }
 
+// Templates
+
+export type TemplateCategory = "faceless_slideshow" | "ugc_slideshow" | "ugc_video";
+export type TemplateStatus = "pending" | "active";
+export type SlideImageType = "generated_prompt" | "ugc_creator" | "fixed";
+
+export interface TemplateListItem {
+  name: string;
+  category: TemplateCategory;
+  status: TemplateStatus;
+  slide_count?: number;
+  reaction_duration?: number;
+  clip?: string;
+}
+
+export interface TemplatesResponse {
+  campaign: string;
+  templates: TemplateListItem[];
+}
+
+export interface SlideImage {
+  type: SlideImageType;
+  prompt?: string;
+  has_reference_image: boolean;
+  has_fixed_image: boolean;
+  reference_image_url: string | null;
+  fixed_image_url: string | null;
+}
+
+export interface SlideText {
+  position: string;
+  text: string;
+}
+
+export interface Slide {
+  slide_number: number;
+  image: SlideImage;
+  text: SlideText;
+}
+
+export interface ClipRequirementStatus {
+  filename: string;
+  present: boolean;
+}
+
+export interface ClipRequirements {
+  type: string;
+  required_languages?: string[];
+  required_creators?: string[];
+  status?: ClipRequirementStatus[];
+}
+
+export interface TemplateClip {
+  filename: string;
+  url: string;
+}
+
+export interface VideoConfig {
+  status?: string;
+  reaction_duration?: number;
+  clip?: string;
+  text?: {
+    position?: string;
+    duration?: number | string;
+  };
+}
+
+export interface TemplateValidation {
+  ready: boolean;
+  missing: string[];
+}
+
+export interface TemplateDetail {
+  campaign: string;
+  name: string;
+  category: TemplateCategory;
+  status: TemplateStatus;
+  caption?: string;
+  writing_guide?: string;
+  validation: TemplateValidation;
+  // Slideshow fields
+  slides?: Slide[];
+  // UGC video fields
+  config?: VideoConfig;
+  text?: string;
+  has_thumbnail?: boolean;
+  thumbnail_url?: string;
+  clips?: TemplateClip[];
+  clip_requirements?: ClipRequirements;
+}
+
 export interface OrchestratorStatus {
   last_main_run: string;
   last_main_run_minutes_ago: number;

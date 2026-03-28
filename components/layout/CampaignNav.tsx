@@ -12,6 +12,7 @@ const tabs = [
   { label: "Content", path: "/content" },
   { label: "Capacity", path: "/capacity" },
   { label: "Failures", path: "/failures" },
+  { label: "Templates", path: "/templates" },
 ];
 
 export function CampaignNav({ campaign }: { campaign: string }) {

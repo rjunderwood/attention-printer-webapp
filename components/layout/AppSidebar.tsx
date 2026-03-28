@@ -12,6 +12,7 @@ import {
   AlertTriangle,
   Gauge,
   Flame,
+  Layers,
   Printer,
   Moon,
   Sun,
@@ -43,6 +44,7 @@ const campaignTabs = [
   { label: "Warmup", path: "/warmup", icon: Flame },
   { label: "Capacity", path: "/capacity", icon: Gauge },
   { label: "Failures", path: "/failures", icon: AlertTriangle },
+  { label: "Templates", path: "/templates", icon: Layers },
 ]
 
 export function AppSidebar(props: React.ComponentProps<typeof Sidebar>) {

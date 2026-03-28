@@ -6,7 +6,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { api } from "@/lib/api";
-import type { Creator, WarmupPost, WarmupProgress } from "@/lib/types";
+import type { CampaignConfig, Creator, WarmupPost } from "@/lib/types";
 import { toast } from "sonner";
 
 function formatTime(iso: string) {
@@ -29,7 +29,7 @@ export default function WarmupPostingPage() {
   const [loading, setLoading] = useState(true);
   const [marking, setMarking] = useState<string | null>(null);
   const [warmupCreators, setWarmupCreators] = useState<Creator[]>([]);
-  const [warmupProgress, setWarmupProgress] = useState<Record<string, WarmupProgress>>({});
+  const [config, setConfig] = useState<CampaignConfig | null>(null);
 
   async function loadPosts(showSkeleton = true) {
     if (showSkeleton) setLoading(true);
@@ -50,19 +50,18 @@ export default function WarmupPostingPage() {
   useEffect(() => {
     async function loadCreators() {
       try {
-        const data = await api.getCreators(campaign);
-        const warmup = data.creators.filter(
-          (c) => c.status === "account_warmup" || c.status === "posting_warmup"
-        );
-        setWarmupCreators(warmup);
-        const progress = await Promise.allSettled(
-          warmup.map((c) => api.getWarmupProgress(campaign, c.name))
-        );
-        const map: Record<string, WarmupProgress> = {};
-        progress.forEach((p, i) => {
-          if (p.status === "fulfilled") map[warmup[i].name] = p.value;
-        });
-        setWarmupProgress(map);
+        const [creatorsData, configData] = await Promise.allSettled([
+          api.getCreators(campaign),
+          api.getConfig(campaign),
+        ]);
+        if (creatorsData.status === "fulfilled") {
+          setWarmupCreators(
+            creatorsData.value.creators.filter(
+              (c) => c.status === "account_warmup" || c.status === "posting_warmup"
+            )
+          );
+        }
+        if (configData.status === "fulfilled") setConfig(configData.value);
       } catch {
         // Non-critical, don't block the page
       }
@@ -168,68 +167,6 @@ export default function WarmupPostingPage() {
           </Badge>
         )}
       </div>
-
-      {warmupCreators.length > 0 && (
-        <div className="space-y-1">
-          <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground py-1">
-            Creators in Warmup
-          </p>
-          {warmupCreators.map((c) => {
-            const wp = warmupProgress[c.name];
-            const isPosting = c.status === "posting_warmup";
-            const completed = wp?.posting_warmup?.posts_completed ?? 0;
-            const target = wp?.posting_warmup?.target_posts ?? 10;
-            const pct = isPosting ? Math.round((completed / target) * 100) : 0;
-            return (
-              <div
-                key={c.name}
-                className="flex items-center justify-between p-3 rounded-lg border bg-background border-border"
-              >
-                <div className="flex items-center gap-2 min-w-0">
-                  <span className="text-sm font-medium truncate">{c.name}</span>
-                  <Badge variant="outline" className="text-xs">{c.region}</Badge>
-                  <Badge
-                    variant="outline"
-                    className={`text-xs ${
-                      isPosting
-                        ? "bg-blue-100 text-blue-800"
-                        : "bg-yellow-100 text-yellow-800"
-                    }`}
-                  >
-                    {isPosting ? "Posting" : "Account"}
-                  </Badge>
-                  {c.warmup_device != null && (
-                    <span className="text-xs text-muted-foreground">
-                      Device {c.warmup_device}
-                    </span>
-                  )}
-                </div>
-                <div className="flex items-center gap-2 shrink-0 ml-2">
-                  {isPosting ? (
-                    <>
-                      <div className="w-16 h-1.5 bg-muted rounded-full overflow-hidden">
-                        <div
-                          className="h-full bg-blue-500 rounded-full"
-                          style={{ width: `${pct}%` }}
-                        />
-                      </div>
-                      <span className="text-xs text-muted-foreground w-8 text-right">
-                        {completed}/{target}
-                      </span>
-                    </>
-                  ) : (
-                    <span className="text-xs text-muted-foreground">
-                      {wp?.account_warmup?.started_at
-                        ? `Since ${wp.account_warmup.started_at}`
-                        : ""}
-                    </span>
-                  )}
-                </div>
-              </div>
-            );
-          })}
-        </div>
-      )}
 
       {posts.length === 0 && (
         <div className="text-center py-12 text-muted-foreground">
@@ -343,6 +280,78 @@ export default function WarmupPostingPage() {
           </div>
         );
       })}
+
+      {warmupCreators.length > 0 && (
+        <div className="space-y-1">
+          <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground py-1">
+            Creators in Warmup
+          </p>
+          {warmupCreators.map((c) => {
+            const isPosting = c.status === "posting_warmup";
+            const targetDays = config?.warmup?.account_warmup_days ?? 12;
+
+            let pct = 0;
+            let label = "";
+            let barColor = "";
+
+            if (isPosting) {
+              const completed = c.warmup?.posting_warmup?.posts_completed ?? 0;
+              const target = c.warmup?.posting_warmup?.target_posts ?? config?.warmup?.posting_warmup_target_posts ?? 10;
+              pct = Math.round((completed / target) * 100);
+              label = `${completed}/${target} posts`;
+              barColor = "bg-blue-500";
+            } else {
+              const startedAt = c.warmup?.account_warmup?.started_at;
+              if (startedAt) {
+                const start = new Date(startedAt);
+                const now = new Date();
+                const elapsed = Math.floor((now.getTime() - start.getTime()) / (1000 * 60 * 60 * 24));
+                pct = Math.min(100, Math.round((elapsed / targetDays) * 100));
+                label = `Day ${elapsed}/${targetDays}`;
+              }
+              barColor = "bg-yellow-500";
+            }
+
+            return (
+              <div
+                key={c.name}
+                className="flex items-center justify-between p-3 rounded-lg border bg-background border-border"
+              >
+                <div className="flex items-center gap-2 min-w-0">
+                  <span className="text-sm font-medium truncate">{c.name}</span>
+                  <Badge variant="outline" className="text-xs">{c.region}</Badge>
+                  <Badge
+                    variant="outline"
+                    className={`text-xs ${
+                      isPosting
+                        ? "bg-blue-100 text-blue-800"
+                        : "bg-yellow-100 text-yellow-800"
+                    }`}
+                  >
+                    {isPosting ? "Posting" : "Account"}
+                  </Badge>
+                  {c.warmup_device != null && (
+                    <span className="text-xs text-muted-foreground">
+                      Device {c.warmup_device}
+                    </span>
+                  )}
+                </div>
+                <div className="flex items-center gap-2 shrink-0 ml-2">
+                  <div className="w-16 h-1.5 bg-muted rounded-full overflow-hidden">
+                    <div
+                      className={`h-full rounded-full ${barColor}`}
+                      style={{ width: `${pct}%` }}
+                    />
+                  </div>
+                  <span className="text-xs text-muted-foreground whitespace-nowrap">
+                    {label}
+                  </span>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
     </div>
   );
 }

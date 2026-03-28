@@ -4,6 +4,7 @@ export interface CampaignConfig {
   content_types: string[];
   regions: string[];
   platforms: string[];
+  creator_types: string[];
   posts_per_day: number;
   rest_pattern: boolean[];
   content_low_threshold: number;
@@ -13,12 +14,17 @@ export interface CampaignConfig {
     notification_minute: number;
     confirmation_window_minutes: number;
   };
+  warmup?: {
+    account_warmup_days: number;
+    posting_warmup_target_posts: number;
+  };
 }
 
 export interface PlanGroup {
   name: string;
   content_types: string[];
   region?: string;
+  type?: string;
   count?: number;
 }
 
@@ -37,6 +43,7 @@ export interface PlanResponse {
 export interface PlanSetRequest {
   content_types: string[];
   region?: string;
+  type?: string;
   count?: number;
   group?: string;
 }
@@ -46,6 +53,7 @@ export interface PreviewAssignment {
   group: string;
   content_types: string[];
   region: string;
+  type: string;
   action: "post" | "rest" | "paused";
 }
 
@@ -92,12 +100,27 @@ export type CreatorStatus =
   | "pending"
   | "archived";
 
+export interface CreatorWarmup {
+  account_warmup: {
+    started_at: string | null;
+    completed_at: string | null;
+  };
+  posting_warmup: {
+    started_at: string | null;
+    completed_at: string | null;
+    target_posts: number;
+    posts_completed: number;
+  };
+}
+
 export interface Creator {
   name: string;
   region: string;
+  type: string;
   status: CreatorStatus;
   inactive_reason?: string;
   warmup_device?: number;
+  warmup?: CreatorWarmup;
   profile_picture_url: string;
 }
 
@@ -144,6 +167,7 @@ export interface HistoryDetailAssignment {
   group: string;
   content_types: string[];
   region: string;
+  type: string;
   action: string;
   status: string;
   scheduled?: number;

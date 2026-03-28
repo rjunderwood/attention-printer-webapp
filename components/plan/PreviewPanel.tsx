@@ -127,6 +127,7 @@ export function PreviewPanel({
                       )}
                       {c.creator}
                       <span className="text-muted-foreground">{c.region}</span>
+                      <span className="text-muted-foreground">{c.type?.replace(/_/g, " ")}</span>
                     </span>
                   );
                 })}

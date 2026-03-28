@@ -73,6 +73,12 @@ export const api = {
       method: "POST",
     }),
 
+  setCreatorType: (campaign: string, name: string, type: string) =>
+    request<{ message: string }>(`/${campaign}/creators/${name}/type`, {
+      method: "POST",
+      body: JSON.stringify({ type }),
+    }),
+
   getHistory: (campaign: string, days?: number) =>
     request<import("./types").HistoryResponse>(
       `/${campaign}/history${days ? `?days=${days}` : ""}`

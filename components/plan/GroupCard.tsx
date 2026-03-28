@@ -110,6 +110,28 @@ export function GroupCard({ group, config, onUpdate, onRemove, disabled, readine
           </select>
         </div>
 
+        {config.creator_types?.length > 0 && (
+          <div>
+            <label className="text-xs text-muted-foreground">Creator Type</label>
+            <select
+              className="w-full h-11 rounded-md border border-input bg-background px-3 text-sm"
+              value={group.type || "all"}
+              onChange={(e) => {
+                const val = e.target.value === "all" ? undefined : e.target.value;
+                onUpdate({ ...group, type: val });
+              }}
+              disabled={disabled}
+            >
+              <option value="all">All</option>
+              {config.creator_types.map((t) => (
+                <option key={t} value={t}>
+                  {t.replace(/_/g, " ")}
+                </option>
+              ))}
+            </select>
+          </div>
+        )}
+
         <div>
           <label className="text-xs text-muted-foreground">Count (optional)</label>
           <Input

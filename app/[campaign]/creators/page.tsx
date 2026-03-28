@@ -6,7 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { api } from "@/lib/api";
-import type { Creator, WarmupProgress } from "@/lib/types";
+import type { CampaignConfig, Creator } from "@/lib/types";
 import { toast } from "sonner";
 
 const STATUSES = ["All", "Active", "Paused", "Warmup", "Pending", "Archived"];
@@ -37,6 +37,7 @@ export default function CreatorsPage() {
   const { campaign } = useParams<{ campaign: string }>();
   const [creators, setCreators] = useState<Creator[]>([]);
   const [regions, setRegions] = useState<string[]>([]);
+  const [config, setConfig] = useState<CampaignConfig | null>(null);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
   const [regionFilter, setRegionFilter] = useState("All");
@@ -44,9 +45,9 @@ export default function CreatorsPage() {
   const [expanded, setExpanded] = useState<string | null>(null);
   const [toggling, setToggling] = useState<string | null>(null);
   const [pauseReason, setPauseReason] = useState("");
-  const [warmupProgress, setWarmupProgress] = useState<Record<string, WarmupProgress>>({});
   const [warmupLoading, setWarmupLoading] = useState<string | null>(null);
   const [deviceNumber, setDeviceNumber] = useState("");
+  const [typeChanging, setTypeChanging] = useState<string | null>(null);
 
   useEffect(() => {
     async function load() {
@@ -56,7 +57,10 @@ export default function CreatorsPage() {
           api.getConfig(campaign),
         ]);
         if (creatorsData.status === "fulfilled") setCreators(creatorsData.value.creators);
-        if (configData.status === "fulfilled") setRegions(configData.value.regions);
+        if (configData.status === "fulfilled") {
+          setRegions(configData.value.regions);
+          setConfig(configData.value);
+        }
       } catch (err) {
         toast.error(err instanceof Error ? err.message : "Failed to load creators");
       } finally {
@@ -66,16 +70,7 @@ export default function CreatorsPage() {
     load();
   }, [campaign]);
 
-  async function loadWarmupProgress(name: string) {
-    try {
-      const progress = await api.getWarmupProgress(campaign, name);
-      setWarmupProgress((prev) => ({ ...prev, [name]: progress }));
-    } catch {
-      // Warmup data not available yet
-    }
-  }
-
-  async function handleExpand(name: string, status: string) {
+  function handleExpand(name: string) {
     if (expanded === name) {
       setExpanded(null);
       setPauseReason("");
@@ -84,9 +79,6 @@ export default function CreatorsPage() {
     setExpanded(name);
     setPauseReason("");
     setDeviceNumber("");
-    if (status === "account_warmup" || status === "posting_warmup") {
-      loadWarmupProgress(name);
-    }
   }
 
   async function toggleCreator(name: string, currentlyActive: boolean) {
@@ -138,7 +130,6 @@ export default function CreatorsPage() {
         )
       );
       setDeviceNumber("");
-      loadWarmupProgress(name);
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Failed to start warmup");
     } finally {
@@ -162,7 +153,6 @@ export default function CreatorsPage() {
         )
       );
       setDeviceNumber("");
-      loadWarmupProgress(name);
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Failed to promote");
     } finally {
@@ -186,11 +176,25 @@ export default function CreatorsPage() {
           `Recorded post for ${name} (${result.progress.posting_warmup.posts_completed}/${result.progress.posting_warmup.target_posts})`
         );
       }
-      loadWarmupProgress(name);
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Failed to record post");
     } finally {
       setWarmupLoading(null);
+    }
+  }
+
+  async function handleChangeType(name: string, newType: string) {
+    setTypeChanging(name);
+    try {
+      await api.setCreatorType(campaign, name, newType);
+      toast.success(`Set ${name} type to ${newType.replace(/_/g, " ")}`);
+      setCreators((prev) =>
+        prev.map((c) => (c.name === name ? { ...c, type: newType } : c))
+      );
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Failed to change type");
+    } finally {
+      setTypeChanging(null);
     }
   }
 
@@ -262,7 +266,7 @@ export default function CreatorsPage() {
           <div key={c.name}>
             <button
               className="w-full flex items-center justify-between p-3 rounded-lg hover:bg-accent/50 min-h-[48px] text-left"
-              onClick={() => handleExpand(c.name, c.status)}
+              onClick={() => handleExpand(c.name)}
             >
               <div className="flex items-center gap-3">
                 <img
@@ -280,6 +284,9 @@ export default function CreatorsPage() {
                 </div>
                 <Badge variant="outline" className="text-xs">
                   {c.region}
+                </Badge>
+                <Badge variant="outline" className="text-xs text-muted-foreground">
+                  {c.type?.replace(/_/g, " ")}
                 </Badge>
               </div>
               <Badge
@@ -318,12 +325,32 @@ export default function CreatorsPage() {
                 {/* Account warmup: Show progress + promote button */}
                 {c.status === "account_warmup" && (
                   <div className="space-y-2">
-                    <div className="text-xs text-muted-foreground space-y-0.5">
-                      {warmupProgress[c.name]?.account_warmup?.started_at && (
-                        <p>Started {warmupProgress[c.name].account_warmup.started_at}</p>
-                      )}
-                      <p>Device {c.warmup_device ?? warmupProgress[c.name]?.warmup_device ?? "—"}</p>
-                    </div>
+                    {(() => {
+                      const targetDays = config?.warmup?.account_warmup_days ?? 12;
+                      const startedAt = c.warmup?.account_warmup?.started_at;
+                      let elapsed = 0;
+                      let pct = 0;
+                      if (startedAt) {
+                        elapsed = Math.floor((new Date().getTime() - new Date(startedAt).getTime()) / (1000 * 60 * 60 * 24));
+                        pct = Math.min(100, Math.round((elapsed / targetDays) * 100));
+                      }
+                      return (
+                        <>
+                          <div className="flex items-center justify-between text-xs">
+                            <span className="text-muted-foreground">
+                              Device {c.warmup_device ?? "—"}
+                            </span>
+                            <span className="font-medium">Day {elapsed}/{targetDays}</span>
+                          </div>
+                          <div className="h-2 bg-muted rounded-full overflow-hidden">
+                            <div
+                              className="h-full bg-yellow-500 rounded-full transition-all"
+                              style={{ width: `${pct}%` }}
+                            />
+                          </div>
+                        </>
+                      );
+                    })()}
                     <Input
                       type="number"
                       min={1}
@@ -346,15 +373,14 @@ export default function CreatorsPage() {
 
                 {/* Posting warmup: Show progress bar + record post */}
                 {c.status === "posting_warmup" && (() => {
-                  const wp = warmupProgress[c.name]?.posting_warmup;
-                  const completed = wp?.posts_completed ?? 0;
-                  const target = wp?.target_posts ?? 10;
+                  const completed = c.warmup?.posting_warmup?.posts_completed ?? 0;
+                  const target = c.warmup?.posting_warmup?.target_posts ?? config?.warmup?.posting_warmup_target_posts ?? 10;
                   const pct = Math.round((completed / target) * 100);
                   return (
                     <div className="space-y-2">
                       <div className="flex items-center justify-between text-xs">
                         <span className="text-muted-foreground">
-                          Device {c.warmup_device ?? warmupProgress[c.name]?.warmup_device ?? "—"}
+                          Device {c.warmup_device ?? "—"}
                         </span>
                         <span className="font-medium">{completed}/{target} posts</span>
                       </div>
@@ -364,18 +390,6 @@ export default function CreatorsPage() {
                           style={{ width: `${pct}%` }}
                         />
                       </div>
-                      {wp?.posts && wp.posts.length > 0 && (
-                        <div className="flex flex-wrap gap-1">
-                          {wp.posts.map((date) => (
-                            <span
-                              key={date}
-                              className="text-[11px] px-1.5 py-0.5 bg-blue-50 text-blue-700 rounded"
-                            >
-                              {date}
-                            </span>
-                          ))}
-                        </div>
-                      )}
                       <Button
                         size="sm"
                         className="min-h-[44px]"
@@ -387,6 +401,25 @@ export default function CreatorsPage() {
                     </div>
                   );
                 })()}
+
+                {/* Change type */}
+                {config?.creator_types && (
+                  <div>
+                    <label className="text-xs text-muted-foreground">Creator Type</label>
+                    <select
+                      className="w-full h-11 rounded-md border border-input bg-background px-3 text-sm"
+                      value={c.type || ""}
+                      onChange={(e) => handleChangeType(c.name, e.target.value)}
+                      disabled={typeChanging === c.name}
+                    >
+                      {config.creator_types.map((t) => (
+                        <option key={t} value={t}>
+                          {t.replace(/_/g, " ")}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                )}
 
                 {/* Active / posting_warmup: Pause action */}
                 {isActiveStatus(c.status) && (

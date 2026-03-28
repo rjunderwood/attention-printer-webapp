@@ -129,6 +129,7 @@ export default function PlanEditorPage() {
       const result = await api.setPlanGroup(campaign, {
         content_types: group.content_types,
         region: group.region,
+        type: group.type,
         count: group.count,
         group: group.name,
       });

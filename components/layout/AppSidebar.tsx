@@ -16,6 +16,7 @@ import {
   Printer,
   Moon,
   Sun,
+  CalendarRange,
 } from "lucide-react"
 import { useTheme } from "next-themes"
 import { api } from "@/lib/api"
@@ -38,6 +39,7 @@ import {
 const campaignTabs = [
   { label: "Overview", path: "", icon: LayoutDashboard },
   { label: "Plan", path: "/plan", icon: Calendar },
+  { label: "Plans", path: "/plans", icon: CalendarRange },
   { label: "Creators", path: "/creators", icon: Users },
   { label: "History", path: "/history", icon: History },
   { label: "Content", path: "/content", icon: FileText },

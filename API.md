@@ -294,7 +294,7 @@ List all creators with region and status.
 {
   "campaign": "unlove",
   "creators": [
-    {"name": "abby-m", "region": "AEST", "type": "ugc_video", "status": "active", "profile_picture_url": "http://127.0.0.1:5000/api/unlove/creators/abby-m/profile-picture"},
+    {"name": "abby-m", "region": "AEST", "type": "ugc_video", "status": "active", "plan_group": "group-a", "plan_action": "post", "profile_picture_url": "http://127.0.0.1:5000/api/unlove/creators/abby-m/profile-picture"},
     {"name": "bianca-b", "region": "AEST", "type": "ugc_video", "status": "posting_warmup", "warmup_device": 3, "warmup": {"account_warmup": {"started_at": "2026-03-15", "completed_at": "2026-03-23"}, "posting_warmup": {"started_at": "2026-03-23", "completed_at": null, "target_posts": 10, "posts_completed": 3}}, "profile_picture_url": "http://127.0.0.1:5000/api/unlove/creators/bianca-b/profile-picture"},
     {"name": "vanessa-a", "region": "AEST", "type": "ugc_video", "status": "paused", "inactive_reason": "Text exhausted: meme", "profile_picture_url": "http://127.0.0.1:5000/api/unlove/creators/vanessa-a/profile-picture"}
   ]
@@ -318,6 +318,10 @@ The `status` field indicates the creator's current state. Possible values:
 - `"account_warmup"` — new account being warmed up
 - `"pending"` — newly created, not yet set up
 - `"archived"` — permanently retired
+
+The `plan_group` and `plan_action` fields are only present when there is an active plan template running. They indicate the creator's assignment in today's plan:
+- `plan_group` — the group name the creator is assigned to (e.g. `"group-a"`), `"rest"` if resting, or `"unassigned"` if not matched by any group
+- `plan_action` — one of `"post"` (posting today), `"rest"` (rest day), or `"skip"` (unassigned)
 
 The `inactive_reason` field is only present when status is not `"active"` or `"posting_warmup"`. Possible values:
 - `"Text exhausted: {content_type}"` — auto-paused by orchestrator when text pack ran out
@@ -1089,6 +1093,97 @@ Activate a pending template. Validates all required assets are present before al
 
 ---
 
+## Queues
+
+### GET /api/{campaign}/queues/scan
+
+Scan all queues for creators with low generation counts. Use this to detect when `/generate-queue-content` needs to be run.
+
+**Query params:**
+- `minimum` (optional): Minimum unused generations required (default: `2`)
+
+**Response (all good):**
+```json
+{
+  "campaign": "unlove",
+  "minimum": 2,
+  "shortfalls": [],
+  "count": 0,
+  "ok": true
+}
+```
+
+**Response (shortfalls found):**
+```json
+{
+  "campaign": "unlove",
+  "minimum": 2,
+  "shortfalls": [
+    {
+      "campaign": "unlove",
+      "category": "faceless_slideshow",
+      "content_type": "i-promise-i-wont-call",
+      "creator": "alice",
+      "available": 0,
+      "needed": 2
+    },
+    {
+      "campaign": "unlove",
+      "category": "ugc_video",
+      "content_type": "he-came-back",
+      "creator": "alice",
+      "available": 1,
+      "needed": 1
+    }
+  ],
+  "count": 2,
+  "ok": false
+}
+```
+
+When `ok` is `false`, run the `/generate-queue-content` Claude command to top up.
+
+---
+
+### POST /api/{campaign}/queues/{category}/add-creator
+
+Add an empty creator folder to all content type queues within a category. Skips any content type where the creator already exists.
+
+**Body:**
+```json
+{"creator": "alice"}
+```
+
+| Field | Required | Description |
+|---|---|---|
+| `creator` | Yes | Creator name to add to all queues in the category |
+
+**Response:**
+```json
+{
+  "creator": "alice",
+  "category": "faceless_slideshow",
+  "content_types": {
+    "i-promise-i-wont-call": "created",
+    "who-suffers-more-no-contact": "already_exists"
+  }
+}
+```
+
+Each content type reports `"created"` or `"already_exists"`.
+
+**Response (invalid category):**
+```json
+{"error": "Invalid category 'bad'. Must be one of: faceless_slideshow, ugc_slideshow, ugc_video"}
+```
+
+**Response (no queues):**
+```json
+{"error": "No content types found in faceless_slideshow/queues/"}
+```
+
+---
+
 ## Error Responses
 
 All errors follow the same format:
@@ -1103,3 +1198,490 @@ All errors follow the same format:
 | 401 | Unauthorized (missing/invalid API key) |
 | 404 | Campaign, creator, or resource not found |
 | 500 | Server error |
+
+---
+
+## New Plan System (plans_new)
+
+Multi-day plan templates with independent active and warmup scopes. All endpoints accept a `scope` parameter (`active` or `warmup`, default: `active`).
+
+- **Active scope**: Targets `status=active` creators. Templates loop. Campaign rest pattern applies (unless `auto_rest=false`).
+- **Warmup scope**: Targets `status=posting_warmup` creators. Uses cohorts. Templates run once (no loop). Creators graduate to active on completion.
+
+Content is specified as `[{content_category, content_type}]` mapping to `campaigns/{campaign}/content/type/{category}/templates/{type}`.
+
+---
+
+### GET /api/{campaign}/plans_new/templates
+
+List plan templates.
+
+**Query params:** `scope=active` (default) or `scope=warmup`
+
+**Response:**
+```json
+{
+  "campaign": "unlove",
+  "scope": "active",
+  "templates": [
+    {
+      "id": "tmpl_a1b2c3d4",
+      "name": "3-day rotation",
+      "cycle_days": 3,
+      "active": true,
+      "created_at": "2026-03-29T10:00:00",
+      "updated_at": "2026-03-29T12:00:00"
+    }
+  ]
+}
+```
+
+---
+
+### POST /api/{campaign}/plans_new/templates
+
+Create a new template.
+
+**Body:**
+```json
+{
+  "scope": "active",
+  "name": "3-day rotation",
+  "cycle_days": 3,
+  "auto_rest": true
+}
+```
+
+| Field | Required | Description |
+|---|---|---|
+| scope | No | `active` (default) or `warmup` |
+| name | Yes | Template name |
+| cycle_days | Yes | Number of days in the cycle (positive integer) |
+| auto_rest | No | Enable campaign rest pattern (default: true). Set false when using forced rest groups. |
+
+**Response:**
+```json
+{
+  "message": "Created template '3-day rotation'",
+  "template": { "id": "tmpl_a1b2c3d4", "name": "3-day rotation", "cycle_days": 3, "auto_rest": true, "days": {"1": {"groups": []}, "2": {"groups": []}, "3": {"groups": []}}, ... }
+}
+```
+
+---
+
+### GET /api/{campaign}/plans_new/templates/{id}
+
+Get full template detail.
+
+**Query params:** `scope=active`
+
+**Response:**
+```json
+{
+  "campaign": "unlove",
+  "scope": "active",
+  "template": {
+    "id": "tmpl_a1b2c3d4",
+    "name": "3-day rotation",
+    "cycle_days": 3,
+    "auto_rest": true,
+    "days": {
+      "1": {
+        "groups": [
+          {
+            "name": "est-ugc",
+            "content": [{"content_category": "ugc_video", "content_type": "example_ugc_video_1"}],
+            "region": "EST"
+          }
+        ]
+      }
+    }
+  }
+}
+```
+
+---
+
+### DELETE /api/{campaign}/plans_new/templates/{id}
+
+Delete a template. Fails if active in either scope.
+
+**Query params:** `scope=active`
+
+---
+
+### POST /api/{campaign}/plans_new/templates/{id}/set-day
+
+Set a group on a specific day.
+
+**Body:**
+```json
+{
+  "scope": "active",
+  "day": 1,
+  "group": {
+    "name": "est-ugc",
+    "content": [
+      {"content_category": "ugc_video", "content_type": "example_ugc_video_1"},
+      {"content_category": "faceless_slideshow", "content_type": "example_faceless_slideshow_1"}
+    ],
+    "region": "EST",
+    "count": null,
+    "creator_type": null,
+    "creators": null,
+    "rest": false
+  }
+}
+```
+
+| Group field | Description |
+|---|---|
+| name | Group name (required) |
+| content | List of `{content_category, content_type}`. Length = posts per day. Required unless `rest=true`. |
+| region | Filter: EST, AEST, CET |
+| count | Limit number of creators |
+| creator_type | Filter: ugc_video, ugc_mixed, ugc_slideshow, faceless_video, faceless_slideshow |
+| creators | Specific creator names (overrides region/type/count) |
+| rest | Force rest day for this group (no content needed) |
+
+**Response:** Returns updated template.
+
+---
+
+### POST /api/{campaign}/plans_new/templates/{id}/remove-group
+
+**Body:** `{"scope": "active", "day": 1, "group_name": "est-ugc"}`
+
+---
+
+### POST /api/{campaign}/plans_new/templates/{id}/clone
+
+Clone a template with adjustments from an activation period overlaid.
+
+**Body:**
+```json
+{
+  "scope": "active",
+  "name": "Cloned template",
+  "period": null,
+  "cycle": null
+}
+```
+
+| Field | Description |
+|---|---|
+| name | Name for new template (required) |
+| period | Activation period ID (default: most recent) |
+| cycle | Only overlay adjustments from this cycle number |
+
+---
+
+### GET /api/{campaign}/plans_new/templates/{id}/validate
+
+Check if all content paths in the template exist.
+
+**Query params:** `scope=active`
+
+**Response:**
+```json
+{
+  "campaign": "unlove",
+  "template_id": "tmpl_a1b2c3d4",
+  "valid": false,
+  "errors": ["Day 1, group 'est-ugc': template not found at ugc_video/templates/missing_type"]
+}
+```
+
+---
+
+### GET /api/{campaign}/plans_new/show
+
+Show current plan state.
+
+**Query params:** `scope=active`
+
+**Response (active scope):**
+```json
+{
+  "campaign": "unlove",
+  "scope": "active",
+  "active": true,
+  "template_id": "tmpl_a1b2c3d4",
+  "template_name": "3-day rotation",
+  "cycle_days": 3,
+  "auto_rest": true,
+  "current_cycle_day": 2,
+  "cycle_count": 5,
+  "activated_at": "2026-03-20T10:00:00",
+  "last_completed_date": "2026-03-28",
+  "current_day_groups": [...],
+  "confirmation": {
+    "target_date": "2026-03-29",
+    "status": "pending",
+    "adjusted": false,
+    "confirmed_at": null,
+    "confirmed_by": null
+  }
+}
+```
+
+**Response (warmup scope):**
+```json
+{
+  "campaign": "unlove",
+  "scope": "warmup",
+  "active": true,
+  "template_id": "tmpl_xyz",
+  "template_name": "7-day warmup",
+  "cycle_days": 7,
+  "active_cohorts": [
+    {"id": "cohort_abc", "creators": ["alice", "bob"], "current_day": 4, "status": "in_progress", "started_at": "2026-03-24T10:00:00", "completed_at": null}
+  ],
+  "completed_cohorts": [...]
+}
+```
+
+Returns `{"active": false}` when no template is active for the scope.
+
+---
+
+### POST /api/{campaign}/plans_new/activate
+
+Activate a template for a scope.
+
+**Body:** `{"scope": "active", "template_id": "tmpl_a1b2c3d4"}`
+
+---
+
+### POST /api/{campaign}/plans_new/deactivate
+
+Deactivate the current template.
+
+**Body:** `{"scope": "active"}`
+
+---
+
+### GET /api/{campaign}/plans_new/preview
+
+Preview assignments for a date.
+
+**Query params:** `scope=active`, `date=2026-03-30` (default: tomorrow)
+
+**Response (active scope):**
+```json
+{
+  "campaign": "unlove",
+  "scope": "active",
+  "date": "2026-03-30",
+  "template_id": "tmpl_a1b2c3d4",
+  "cycle_day": 2,
+  "cycle_count": 5,
+  "total": 51,
+  "posting": 33,
+  "resting": 5,
+  "unassigned": 0,
+  "assignments": {
+    "alice": {"group": "est-ugc", "content": [...], "region": "AEST", "type": "ugc_video", "action": "post"},
+    "bob": {"group": "rest", "content": [], "region": "EST", "type": "ugc_video", "action": "rest"}
+  }
+}
+```
+
+**Response (warmup scope):**
+```json
+{
+  "campaign": "unlove",
+  "scope": "warmup",
+  "date": "2026-03-30",
+  "total": 3,
+  "posting": 3,
+  "resting": 0,
+  "cohorts": {
+    "cohort_abc": {"day": 4, "creators": ["alice", "bob"], "started_at": "2026-03-24T10:00:00"},
+    "cohort_def": {"day": 1, "creators": ["cass"], "started_at": "2026-03-28T10:00:00"}
+  },
+  "assignments": {
+    "alice": {"group": "all-warmup", "content": [...], "action": "post", "cohort_id": "cohort_abc", "cohort_day": 4}
+  }
+}
+```
+
+---
+
+### POST /api/{campaign}/plans_new/confirm
+
+Confirm the pending plan.
+
+**Body:**
+```json
+{"scope": "active", "refresh": false}
+```
+
+Set `refresh: true` to re-resolve assignments with the current template before confirming.
+
+---
+
+### POST /api/{campaign}/plans_new/adjust
+
+Adjust a pending day's group without changing the base template.
+
+**Body:**
+```json
+{
+  "scope": "active",
+  "group": "est-ugc",
+  "content": [{"content_category": "ugc_video", "content_type": "example_ugc_video_2"}],
+  "region": "EST"
+}
+```
+
+Only works when confirmation status is `pending`. Creates an adjustment record.
+
+---
+
+### GET /api/{campaign}/plans_new/history
+
+Plan execution history.
+
+**Query params:** `scope=active`, `date=2026-03-29` (specific day) or `days=7` (summary list)
+
+**Response (summary):**
+```json
+{
+  "campaign": "unlove",
+  "scope": "active",
+  "history": [
+    {
+      "date": "2026-03-29",
+      "template_id": "tmpl_a1b2c3d4",
+      "cycle_day": 2,
+      "cycle_count": 5,
+      "adjusted": false,
+      "summary": {"total": 51, "posted": 33, "failed": 0, "resting": 5, "by_group": {...}}
+    }
+  ]
+}
+```
+
+**Response (detail with `?date=`):** Returns full history record including all assignments.
+
+---
+
+### GET /api/{campaign}/plans_new/adjustments
+
+List dates that had plan adjustments.
+
+**Query params:** `scope=active`
+
+**Response:**
+```json
+{
+  "campaign": "unlove",
+  "scope": "active",
+  "adjustments": [
+    {"date": "2026-03-29", "template_id": "tmpl_a1b2c3d4", "cycle_day": 2, "cycle_count": 5, "adjusted_at": "2026-03-29T15:00:00"}
+  ]
+}
+```
+
+---
+
+### GET /api/{campaign}/plans_new/queue-check
+
+Check queue availability for tomorrow's plan.
+
+**Query params:** `scope=active`
+
+**Response:**
+```json
+{
+  "campaign": "unlove",
+  "scope": "active",
+  "date": "2026-03-30",
+  "total_shortfalls": 3,
+  "shortfalls": [
+    {"creator": "alice", "content_category": "ugc_video", "content_type": "example_1", "available": 0, "needed": 1}
+  ]
+}
+```
+
+---
+
+### GET /api/{campaign}/plans_new/template-history
+
+Template activation history — when templates were in use.
+
+**Query params:** `scope=active`
+
+**Response:**
+```json
+{
+  "campaign": "unlove",
+  "scope": "active",
+  "entries": [
+    {
+      "id": "act_abc123",
+      "template_id": "tmpl_a1b2c3d4",
+      "template_name": "3-day rotation",
+      "cycle_days": 3,
+      "scope": "active",
+      "activated_at": "2026-03-20T10:00:00",
+      "first_generation_at": "2026-03-20T19:00:00",
+      "ended_at": null,
+      "status": "active",
+      "generation_count": 9,
+      "cycles_completed": 3
+    }
+  ]
+}
+```
+
+Status values: `pending` (activated, no generation yet), `active` (generating), `ended` (replaced).
+
+---
+
+### GET /api/{campaign}/plans_new/cohorts
+
+List all warmup cohorts.
+
+**Response:**
+```json
+{
+  "campaign": "unlove",
+  "template_id": "tmpl_xyz",
+  "template_name": "7-day warmup",
+  "cycle_days": 7,
+  "cohorts": [
+    {"id": "cohort_abc", "creators": ["alice", "bob"], "current_day": 4, "status": "in_progress", "started_at": "2026-03-24T10:00:00", "completed_at": null},
+    {"id": "cohort_def", "creators": ["cass"], "current_day": 1, "status": "in_progress", "started_at": "2026-03-28T10:00:00", "completed_at": null}
+  ]
+}
+```
+
+---
+
+### POST /api/{campaign}/plans_new/cohorts
+
+Add a new warmup cohort.
+
+**Body:**
+```json
+{"creators": ["alice", "bob", "charlie"]}
+```
+
+Validates each creator exists and has `status=posting_warmup`. Invalid creators are skipped with warnings.
+
+**Response:**
+```json
+{
+  "message": "Added cohort with 2 creator(s)",
+  "cohort": {"id": "cohort_abc", "creators": ["alice", "bob"], "current_day": 1, "status": "in_progress", ...},
+  "warnings": ["'charlie' has status 'active', not 'posting_warmup'"]
+}
+```
+
+---
+
+### DELETE /api/{campaign}/plans_new/cohorts/{id}
+
+Remove a warmup cohort.

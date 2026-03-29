@@ -362,6 +362,140 @@ export interface TemplateDetail {
   clip_requirements?: ClipRequirements;
 }
 
+// Plans New (template-based plan system)
+
+export type PlanScope = "active" | "warmup";
+
+export interface PlanNewContentItem {
+  content_category: string;
+  content_type: string;
+}
+
+export interface PlanNewGroup {
+  name: string;
+  content?: PlanNewContentItem[];
+  rest?: boolean;
+  region?: string;
+  type?: string;
+  creators?: string[];
+  count?: number;
+}
+
+export interface PlanNewDay {
+  day: number;
+  groups: PlanNewGroup[];
+}
+
+export interface PlanNewTemplate {
+  id: string;
+  scope: PlanScope;
+  name: string;
+  cycle_days: number;
+  auto_rest: boolean;
+  active: boolean;
+  days?: PlanNewDay[];
+}
+
+export interface PlanNewConfirmation {
+  status: "pending" | "confirmed" | "auto_confirmed" | "none";
+  confirmed_at?: string | null;
+  confirmed_by?: string | null;
+}
+
+export interface PlanNewShowResponse {
+  scope: PlanScope;
+  active: boolean;
+  template_name?: string;
+  template_id?: string;
+  cycle_day?: number;
+  cycle_days?: number;
+  cycle_count?: number;
+  auto_rest?: boolean;
+  current_day_groups?: PlanNewGroup[];
+  confirmation?: PlanNewConfirmation;
+  cohorts?: PlanNewCohort[];
+}
+
+export interface PlanNewPreviewAssignment {
+  creator: string;
+  group: string;
+  content?: PlanNewContentItem[];
+  region?: string;
+  type?: string;
+  action: "post" | "rest" | "skip";
+  cohort_id?: string;
+  cohort_day?: number;
+}
+
+export interface PlanNewPreviewResponse {
+  scope: PlanScope;
+  date: string;
+  assignments: PlanNewPreviewAssignment[];
+}
+
+export interface PlanNewQueueWarning {
+  creator: string;
+  content_category: string;
+  content_type: string;
+  available: number;
+  needed: number;
+}
+
+export interface PlanNewQueueCheckResponse {
+  scope: PlanScope;
+  warnings: PlanNewQueueWarning[];
+}
+
+export interface PlanNewTemplateValidation {
+  valid: boolean;
+  errors?: string[];
+}
+
+export interface PlanNewCohort {
+  id: string;
+  creators: string[];
+  status: "in_progress" | "completed";
+  day?: number;
+  cycle_days?: number;
+  started_at?: string;
+  completed_at?: string;
+  warnings?: string[];
+}
+
+export interface PlanNewHistoryEntry {
+  date: string;
+  cycle_day?: number;
+  adjusted: boolean;
+  posted: number;
+  failed: number;
+  resting: number;
+  groups: Record<string, { posted: number; failed: number; resting: number }>;
+}
+
+export interface PlanNewHistoryResponse {
+  scope: PlanScope;
+  entries: PlanNewHistoryEntry[];
+}
+
+export interface PlanNewAdjustment {
+  date: string;
+  scope: PlanScope;
+  group: string;
+  content?: PlanNewContentItem[];
+  region?: string;
+  adjusted_at: string;
+}
+
+export interface PlanNewTemplateHistoryEntry {
+  template_id: string;
+  template_name: string;
+  scope: PlanScope;
+  started_at: string;
+  ended_at?: string;
+  generation_count: number;
+  full_cycle_count: number;
+}
+
 export interface OrchestratorStatus {
   last_main_run: string;
   last_main_run_minutes_ago: number;

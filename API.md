@@ -68,221 +68,6 @@ Campaign configuration metadata. Use this to populate dropdowns, display setting
 
 ---
 
-## Plan
-
-### GET /api/{campaign}/plan
-
-Current plan and paused creators.
-
-**Response:**
-```json
-{
-  "campaign": "unlove",
-  "plan": {
-    "campaign": "unlove",
-    "updated_at": "2026-03-18T19:20:00",
-    "groups": [
-      {"name": "est-demo", "content_types": ["demo-reframe-check-social-media"], "region": "EST"},
-      {"name": "default", "content_types": ["meme"]}
-    ]
-  },
-  "paused_creators": ["vanessa-a"]
-}
-```
-
-The length of `content_types` determines the posts per day for that group. For example, `["meme", "demo-reframe"]` means 2 posts/day (one of each type).
-
----
-
-### POST /api/{campaign}/plan/set
-
-Add or update a plan group.
-
-**Body:**
-```json
-{
-  "content_types": ["meme", "demo-reframe-check-social-media"],
-  "region": "EST",
-  "type": "ugc_video",
-  "count": 5,
-  "group": "est-mixed"
-}
-```
-
-| Field | Required | Description |
-|---|---|---|
-| `content_types` | Yes | List of content type names defined in `campaign.json`. Length = posts per day for this group. |
-| `region` | No | Filter creators by region (`"EST"`, `"AEST"`, `"CET"`) |
-| `type` | No | Filter creators by type (`"ugc_video"`, `"ugc_mixed"`, `"ugc_slideshow"`, `"faceless_video"`, `"faceless_slideshow"`) |
-| `count` | No | Limit number of creators in this group |
-| `group` | No | Group name (defaults to first content type name, or `"default"`) |
-
-All content types are validated against the campaign config. Unknown types return 400:
-```json
-{"error": "Unknown content type(s): fake-type. Available: demo, list, meme, ..."}
-```
-
-**Response:**
-```json
-{
-  "message": "Updated group 'est-mixed'",
-  "plan": {
-    "campaign": "unlove",
-    "updated_at": "2026-03-18T19:25:00",
-    "groups": [
-      {"name": "est-mixed", "content_types": ["meme", "demo-reframe-check-social-media"], "region": "EST", "type": "ugc_video", "count": 5},
-      {"name": "default", "content_types": ["meme"]}
-    ]
-  }
-}
-```
-
----
-
-### POST /api/{campaign}/plan/remove-group
-
-Remove a specific group from the plan.
-
-**Body:**
-```json
-{"group": "est-meme"}
-```
-
-**Response:**
-```json
-{
-  "message": "Removed group 'est-meme'",
-  "plan": {
-    "campaign": "unlove",
-    "updated_at": "2026-03-18T19:30:00",
-    "groups": [
-      {"name": "default", "content_types": ["meme"]}
-    ]
-  }
-}
-```
-
----
-
-### POST /api/{campaign}/plan/reset
-
-Reset to campaign default plan.
-
-**Response:**
-```json
-{
-  "message": "Plan reset to default",
-  "plan": {
-    "campaign": "unlove",
-    "updated_at": "2026-03-18T19:30:00",
-    "groups": [
-      {"name": "default", "content_types": ["meme"]}
-    ]
-  }
-}
-```
-
----
-
-### GET /api/{campaign}/plan/preview
-
-Preview tomorrow's creator assignments with the current plan.
-
-**Query params:**
-- `date` (optional): `YYYY-MM-DD`, defaults to tomorrow
-
-**Response:**
-```json
-{
-  "campaign": "unlove",
-  "date": "2026-03-19",
-  "total": 30,
-  "posting": 22,
-  "resting": 7,
-  "paused": 1,
-  "groups": {
-    "est-demo": [
-      {"creator": "alice-c", "group": "est-demo", "content_types": ["demo-reframe-check-social-media"], "region": "EST", "type": "ugc_video", "action": "post"},
-      {"creator": "jess-w", "group": "est-demo", "content_types": ["demo-reframe-check-social-media"], "region": "EST", "type": "ugc_video", "action": "post"}
-    ],
-    "default": [
-      {"creator": "abby-m", "group": "default", "content_types": ["meme"], "region": "AEST", "type": "ugc_video", "action": "post"}
-    ],
-    "rest": [
-      {"creator": "brooke-p", "group": "rest", "content_types": [], "region": "AEST", "type": "ugc_video", "action": "rest"}
-    ],
-    "paused": [
-      {"creator": "vanessa-a", "group": "paused", "content_types": [], "region": "AEST", "type": "ugc_video", "action": "paused"}
-    ]
-  },
-  "assignments": {
-    "abby-m": {"group": "default", "content_types": ["meme"], "region": "AEST", "type": "ugc_video", "action": "post"},
-    "alice-c": {"group": "est-demo", "content_types": ["demo-reframe-check-social-media"], "region": "EST", "type": "ugc_video", "action": "post"},
-    "brooke-p": {"group": "rest", "content_types": [], "region": "AEST", "type": "ugc_video", "action": "rest"},
-    "vanessa-a": {"group": "paused", "content_types": [], "region": "AEST", "type": "ugc_video", "action": "paused"}
-  }
-}
-```
-
----
-
-## Daily Cycle Confirmation
-
-### GET /api/{campaign}/plan/status
-
-Current daily cycle confirmation state.
-
-**Response (pending):**
-```json
-{
-  "target_date": "2026-03-19",
-  "status": "pending",
-  "notification_sent_at": "2026-03-18T19:00:05",
-  "confirmed_at": null,
-  "confirmed_by": null,
-  "generation_started_at": null,
-  "generation_completed_at": null,
-  "creators_posting": 22,
-  "creators_resting": 7,
-  "creators_paused": 1
-}
-```
-
-**Possible statuses:** `pending`, `confirmed`, `auto_confirmed`, `generating`, `complete`, `complete_with_failures`, `failed`
-
-**Response (no active cycle):**
-```json
-{
-  "status": "none",
-  "message": "No active daily cycle state"
-}
-```
-
----
-
-### POST /api/{campaign}/plan/confirm
-
-Confirm the pending plan. Orchestrator picks it up on next pass (~60s).
-
-**Body (optional):**
-```json
-{"refresh": true}
-```
-
-Use `refresh: true` after adjusting the plan to re-resolve assignments with the updated groups.
-
-**Response (success):**
-```json
-{"message": "Confirmed plan for 2026-03-19"}
-```
-
-**Response (not pending):**
-```json
-{"error": "Status is 'complete', not 'pending'"}
-```
-
----
-
 ## Creators
 
 ### GET /api/{campaign}/creators
@@ -698,28 +483,87 @@ Recent daily cycle history summaries.
 
 ---
 
-## Content Levels
+## Forecast
 
-### GET /api/{campaign}/content-levels
+### GET /api/{campaign}/forecast
 
-Check text pack content levels across all creators.
-
-**Query params:**
-- `threshold` (optional): override the campaign's `content_low_threshold` (default: `posts_per_day * 4`)
+Queue-based content pipeline forecast for all creators. Returns queue levels, scheduling status, and health assessment for every creator in the active plan.
 
 **Response:**
 ```json
 {
   "campaign": "unlove",
-  "threshold": 8,
-  "exhausted": [
-    {"creator": "jess-w", "text_pack": "campaigns/unlove/assets/text/pack-3", "text_type": "demo-reframe-check-social-media", "remaining": 0}
-  ],
-  "low": [
-    {"creator": "chloe-b", "text_pack": "campaigns/unlove/assets/text/pack-1", "text_type": "demo", "remaining": 3},
-    {"creator": "emma-h", "text_pack": "campaigns/unlove/assets/text/pack-2", "text_type": "meme", "remaining": 7}
-  ],
-  "total_issues": 3
+  "summary": {
+    "total_creators": 12,
+    "status_breakdown": {"healthy": 8, "warning": 2, "critical": 2},
+    "creators_by_status": {
+      "healthy": ["alice", "bianca", "..."],
+      "warning": ["chloe-b", "emma-h"],
+      "critical": ["jess-w", "kate-m"]
+    },
+    "urgent_actions": [
+      "jess-w: Generate queue content for all assigned types",
+      "kate-m: Generate queue content for: ugc_video/stuck-in-your-head"
+    ]
+  },
+  "creators": {
+    "jess-w": {
+      "creator": "jess-w",
+      "campaign": "unlove",
+      "timestamp": "2026-04-03T07:00:00.000000",
+      "scope": "active",
+      "group": "everyone",
+      "action": "post",
+      "region": "EST",
+      "status": "critical",
+      "warnings": ["All queues exhausted: ugc_slideshow/day-1-no-contact"],
+      "action_items": ["Generate queue content for all assigned types"],
+      "queue_levels": {"ugc_slideshow/day-1-no-contact": 0},
+      "total_available": 0,
+      "scheduling": {
+        "platforms": ["instagram", "tiktok"],
+        "scheduled_posts_total": 4,
+        "days_available_full": 1,
+        "status_breakdown": {
+          "instagram": {"scheduled": 2, "posted": 0, "failed": 0, "manual": 0},
+          "tiktok": {"scheduled": 2, "posted": 0, "failed": 0, "manual": 0}
+        }
+      }
+    }
+  }
+}
+```
+
+---
+
+### GET /api/{campaign}/forecast/{creator_name}
+
+Detailed queue-based forecast for a single creator.
+
+**Response:**
+```json
+{
+  "creator": "jess-w",
+  "campaign": "unlove",
+  "timestamp": "2026-04-03T07:00:00.000000",
+  "scope": "active",
+  "group": "everyone",
+  "action": "post",
+  "region": "EST",
+  "status": "critical",
+  "warnings": ["All queues exhausted: ugc_slideshow/day-1-no-contact"],
+  "action_items": ["Generate queue content for all assigned types"],
+  "queue_levels": {"ugc_slideshow/day-1-no-contact": 0},
+  "total_available": 0,
+  "scheduling": {
+    "platforms": ["instagram", "tiktok"],
+    "scheduled_posts_total": 4,
+    "days_available_full": 1,
+    "status_breakdown": {
+      "instagram": {"scheduled": 2, "posted": 0, "failed": 0, "manual": 0},
+      "tiktok": {"scheduled": 2, "posted": 0, "failed": 0, "manual": 0}
+    }
+  }
 }
 ```
 
@@ -1201,7 +1045,7 @@ All errors follow the same format:
 
 ---
 
-## New Plan System (plans_new)
+## Plan System
 
 Multi-day plan templates with independent active and warmup scopes. All endpoints accept a `scope` parameter (`active` or `warmup`, default: `active`).
 
@@ -1212,7 +1056,7 @@ Content is specified as `[{content_category, content_type}]` mapping to `campaig
 
 ---
 
-### GET /api/{campaign}/plans_new/templates
+### GET /api/{campaign}/plan/templates
 
 List plan templates.
 
@@ -1238,7 +1082,7 @@ List plan templates.
 
 ---
 
-### POST /api/{campaign}/plans_new/templates
+### POST /api/{campaign}/plan/templates
 
 Create a new template.
 
@@ -1269,7 +1113,7 @@ Create a new template.
 
 ---
 
-### GET /api/{campaign}/plans_new/templates/{id}
+### GET /api/{campaign}/plan/templates/{id}
 
 Get full template detail.
 
@@ -1302,7 +1146,7 @@ Get full template detail.
 
 ---
 
-### DELETE /api/{campaign}/plans_new/templates/{id}
+### DELETE /api/{campaign}/plan/templates/{id}
 
 Delete a template. Fails if active in either scope.
 
@@ -1310,7 +1154,7 @@ Delete a template. Fails if active in either scope.
 
 ---
 
-### POST /api/{campaign}/plans_new/templates/{id}/set-day
+### POST /api/{campaign}/plan/templates/{id}/set-day
 
 Set a group on a specific day.
 
@@ -1348,13 +1192,13 @@ Set a group on a specific day.
 
 ---
 
-### POST /api/{campaign}/plans_new/templates/{id}/remove-group
+### POST /api/{campaign}/plan/templates/{id}/remove-group
 
 **Body:** `{"scope": "active", "day": 1, "group_name": "est-ugc"}`
 
 ---
 
-### POST /api/{campaign}/plans_new/templates/{id}/clone
+### POST /api/{campaign}/plan/templates/{id}/clone
 
 Clone a template with adjustments from an activation period overlaid.
 
@@ -1376,7 +1220,7 @@ Clone a template with adjustments from an activation period overlaid.
 
 ---
 
-### GET /api/{campaign}/plans_new/templates/{id}/validate
+### GET /api/{campaign}/plan/templates/{id}/validate
 
 Check if all content paths in the template exist.
 
@@ -1394,7 +1238,7 @@ Check if all content paths in the template exist.
 
 ---
 
-### GET /api/{campaign}/plans_new/show
+### GET /api/{campaign}/plan/show
 
 Show current plan state.
 
@@ -1445,7 +1289,7 @@ Returns `{"active": false}` when no template is active for the scope.
 
 ---
 
-### POST /api/{campaign}/plans_new/activate
+### POST /api/{campaign}/plan/activate
 
 Activate a template for a scope.
 
@@ -1453,7 +1297,7 @@ Activate a template for a scope.
 
 ---
 
-### POST /api/{campaign}/plans_new/deactivate
+### POST /api/{campaign}/plan/deactivate
 
 Deactivate the current template.
 
@@ -1461,7 +1305,7 @@ Deactivate the current template.
 
 ---
 
-### GET /api/{campaign}/plans_new/preview
+### GET /api/{campaign}/plan/preview
 
 Preview assignments for a date.
 
@@ -1508,7 +1352,7 @@ Preview assignments for a date.
 
 ---
 
-### POST /api/{campaign}/plans_new/confirm
+### POST /api/{campaign}/plan/confirm
 
 Confirm the pending plan.
 
@@ -1521,7 +1365,7 @@ Set `refresh: true` to re-resolve assignments with the current template before c
 
 ---
 
-### POST /api/{campaign}/plans_new/adjust
+### POST /api/{campaign}/plan/adjust
 
 Adjust a pending day's group without changing the base template.
 
@@ -1539,7 +1383,7 @@ Only works when confirmation status is `pending`. Creates an adjustment record.
 
 ---
 
-### GET /api/{campaign}/plans_new/history
+### GET /api/{campaign}/plan/history
 
 Plan execution history.
 
@@ -1567,7 +1411,7 @@ Plan execution history.
 
 ---
 
-### GET /api/{campaign}/plans_new/adjustments
+### GET /api/{campaign}/plan/adjustments
 
 List dates that had plan adjustments.
 
@@ -1586,7 +1430,7 @@ List dates that had plan adjustments.
 
 ---
 
-### GET /api/{campaign}/plans_new/queue-check
+### GET /api/{campaign}/plan/queue-check
 
 Check queue availability for tomorrow's plan.
 
@@ -1607,7 +1451,7 @@ Check queue availability for tomorrow's plan.
 
 ---
 
-### GET /api/{campaign}/plans_new/template-history
+### GET /api/{campaign}/plan/template-history
 
 Template activation history — when templates were in use.
 
@@ -1640,7 +1484,7 @@ Status values: `pending` (activated, no generation yet), `active` (generating), 
 
 ---
 
-### GET /api/{campaign}/plans_new/cohorts
+### GET /api/{campaign}/plan/cohorts
 
 List all warmup cohorts.
 
@@ -1660,7 +1504,7 @@ List all warmup cohorts.
 
 ---
 
-### POST /api/{campaign}/plans_new/cohorts
+### POST /api/{campaign}/plan/cohorts
 
 Add a new warmup cohort.
 
@@ -1682,6 +1526,6 @@ Validates each creator exists and has `status=posting_warmup`. Invalid creators 
 
 ---
 
-### DELETE /api/{campaign}/plans_new/cohorts/{id}
+### DELETE /api/{campaign}/plan/cohorts/{id}
 
 Remove a warmup cohort.

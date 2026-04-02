@@ -6,14 +6,14 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { StatusBadge } from "@/components/plan/StatusBadge";
 import { api } from "@/lib/api";
-import type { CampaignConfig, PlanStatus, ContentLevels } from "@/lib/types";
+import type { CampaignConfig, PlanNewShowResponse, PlanNewQueueCheckResponse } from "@/lib/types";
 import { toast } from "sonner";
 
 interface CampaignData {
   name: string;
   config: CampaignConfig | null;
-  status: PlanStatus | null;
-  contentLevels: ContentLevels | null;
+  show: PlanNewShowResponse | null;
+  queueCheck: PlanNewQueueCheckResponse | null;
 }
 
 export default function DashboardPage() {
@@ -30,16 +30,16 @@ export default function DashboardPage() {
       const { campaigns: names } = await api.getCampaigns();
       const data = await Promise.all(
         names.map(async (name) => {
-          const [config, status, contentLevels] = await Promise.allSettled([
+          const [config, show, queueCheck] = await Promise.allSettled([
             api.getConfig(name),
-            api.getStatus(name),
-            api.getContentLevels(name),
+            api.getPlansNew(name, "active"),
+            api.getPlansNewQueueCheck(name, "active"),
           ]);
           return {
             name,
             config: config.status === "fulfilled" ? config.value : null,
-            status: status.status === "fulfilled" ? status.value : null,
-            contentLevels: contentLevels.status === "fulfilled" ? contentLevels.value : null,
+            show: show.status === "fulfilled" ? show.value : null,
+            queueCheck: queueCheck.status === "fulfilled" ? queueCheck.value : null,
           };
         })
       );
@@ -54,7 +54,7 @@ export default function DashboardPage() {
   async function handleConfirm(campaign: string) {
     setConfirming(campaign);
     try {
-      await api.confirmPlan(campaign);
+      await api.confirmPlansNew(campaign, "active");
       toast.success(`Confirmed plan for ${campaign}`);
       loadDashboard();
     } catch (err) {
@@ -93,22 +93,25 @@ export default function DashboardPage() {
                 <span className="font-medium">
                   {c.config?.product || c.name}
                 </span>
-                {c.status && <StatusBadge status={c.status.status} />}
+                {c.show?.confirmation && (
+                  <StatusBadge status={c.show.confirmation.status} />
+                )}
               </div>
 
-              {c.status && c.status.creators_posting != null && (
+              {c.show?.active && c.show.template_name && (
                 <p className="text-sm text-muted-foreground">
-                  {c.status.creators_posting} posting · {c.status.creators_resting} resting · {c.status.creators_paused} paused
+                  {c.show.template_name}
+                  {c.show.cycle_day != null && c.show.cycle_days != null && ` · Day ${c.show.cycle_day}/${c.show.cycle_days}`}
                 </p>
               )}
 
-              {c.contentLevels && c.contentLevels.total_issues > 0 && (
+              {c.queueCheck && c.queueCheck.total_shortfalls > 0 && (
                 <p className="text-sm text-orange-600">
-                  {c.contentLevels.total_issues} content warning{c.contentLevels.total_issues !== 1 ? "s" : ""}
+                  {c.queueCheck.total_shortfalls} content shortfall{c.queueCheck.total_shortfalls !== 1 ? "s" : ""}
                 </p>
               )}
 
-              {c.status?.status === "pending" && (
+              {c.show?.confirmation?.status === "pending" && (
                 <Button
                   size="sm"
                   className="min-h-[44px] mt-1"

@@ -289,12 +289,31 @@ export default function CreatorsPage() {
                   {c.type?.replace(/_/g, " ")}
                 </Badge>
               </div>
-              <Badge
-                variant="outline"
-                className={statusColor[c.status] ?? "bg-gray-100 text-gray-800"}
-              >
-                {statusLabel[c.status] ?? c.status}
-              </Badge>
+              <div className="flex items-center gap-2">
+                {c.plan_action && (
+                  <span
+                    className={`inline-block w-2 h-2 rounded-full flex-shrink-0 ${
+                      c.plan_action === "post"
+                        ? "bg-green-500"
+                        : c.plan_action === "rest"
+                        ? "bg-gray-400"
+                        : "bg-gray-300 opacity-50"
+                    }`}
+                    title={c.plan_action}
+                  />
+                )}
+                {c.plan_group && (
+                  <Badge variant="outline" className="text-xs text-muted-foreground">
+                    {c.plan_group}
+                  </Badge>
+                )}
+                <Badge
+                  variant="outline"
+                  className={statusColor[c.status] ?? "bg-gray-100 text-gray-800"}
+                >
+                  {statusLabel[c.status] ?? c.status}
+                </Badge>
+              </div>
             </button>
 
             {expanded === c.name && (

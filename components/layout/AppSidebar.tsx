@@ -5,7 +5,6 @@ import { usePathname } from "next/navigation"
 import { useEffect, useState } from "react"
 import {
   LayoutDashboard,
-  Calendar,
   Users,
   History,
   FileText,
@@ -38,8 +37,7 @@ import {
 
 const campaignTabs = [
   { label: "Overview", path: "", icon: LayoutDashboard },
-  { label: "Plan", path: "/plan", icon: Calendar },
-  { label: "Plans", path: "/plans", icon: CalendarRange },
+  { label: "Plan", path: "/plans", icon: CalendarRange },
   { label: "Creators", path: "/creators", icon: Users },
   { label: "History", path: "/history", icon: History },
   { label: "Content", path: "/content", icon: FileText },

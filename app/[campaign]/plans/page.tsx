@@ -12,7 +12,7 @@ import type {
   PlanScope,
   PlanNewShowResponse,
   PlanNewPreviewAssignment,
-  PlanNewQueueWarning,
+  PlanNewShortfall,
   PlanNewContentItem,
 } from "@/lib/types";
 import { toast } from "sonner";
@@ -21,8 +21,9 @@ export default function PlansDashboard() {
   const { campaign } = useParams<{ campaign: string }>();
   const [scope, setScope] = useState<PlanScope>("active");
   const [show, setShow] = useState<PlanNewShowResponse | null>(null);
-  const [preview, setPreview] = useState<PlanNewPreviewAssignment[]>([]);
-  const [warnings, setWarnings] = useState<PlanNewQueueWarning[]>([]);
+  const [assignments, setAssignments] = useState<Record<string, PlanNewPreviewAssignment>>({});
+  const [previewStats, setPreviewStats] = useState<{ posting: number; resting: number; unassigned: number }>({ posting: 0, resting: 0, unassigned: 0 });
+  const [shortfalls, setShortfalls] = useState<PlanNewShortfall[]>([]);
   const [previewDate, setPreviewDate] = useState("");
   const [loading, setLoading] = useState(true);
   const [confirming, setConfirming] = useState(false);
@@ -43,10 +44,19 @@ export default function PlansDashboard() {
       ]);
       if (showRes.status === "fulfilled") setShow(showRes.value);
       else setShow(null);
-      if (prevRes.status === "fulfilled") setPreview(prevRes.value.assignments);
-      else setPreview([]);
-      if (queueRes.status === "fulfilled") setWarnings(queueRes.value.warnings);
-      else setWarnings([]);
+      if (prevRes.status === "fulfilled") {
+        setAssignments(prevRes.value.assignments);
+        setPreviewStats({
+          posting: prevRes.value.posting,
+          resting: prevRes.value.resting,
+          unassigned: prevRes.value.unassigned,
+        });
+      } else {
+        setAssignments({});
+        setPreviewStats({ posting: 0, resting: 0, unassigned: 0 });
+      }
+      if (queueRes.status === "fulfilled") setShortfalls(queueRes.value.shortfalls);
+      else setShortfalls([]);
     } catch {
       toast.error("Failed to load plan data");
     } finally {
@@ -105,21 +115,11 @@ export default function PlansDashboard() {
     );
   }
 
-  // Group preview assignments by group name
-  const byGroup: Record<string, PlanNewPreviewAssignment[]> = {};
-  for (const a of preview) {
+  // Group assignments by group name
+  const byGroup: Record<string, { creator: string; assignment: PlanNewPreviewAssignment }[]> = {};
+  for (const [creator, a] of Object.entries(assignments)) {
     if (!byGroup[a.group]) byGroup[a.group] = [];
-    byGroup[a.group].push(a);
-  }
-
-  // For warmup, group by cohort
-  const byCohort: Record<string, PlanNewPreviewAssignment[]> = {};
-  if (scope === "warmup") {
-    for (const a of preview) {
-      const key = a.cohort_id || "unknown";
-      if (!byCohort[key]) byCohort[key] = [];
-      byCohort[key].push(a);
-    }
+    byGroup[a.group].push({ creator, assignment: a });
   }
 
   return (
@@ -189,7 +189,7 @@ export default function PlansDashboard() {
           </Card>
 
           {/* Confirmation status */}
-          {show.confirmation && show.confirmation.status !== "none" && (
+          {show.confirmation && (
             <Card>
               <CardContent className="p-4">
                 <div className="flex items-center justify-between">
@@ -200,11 +200,19 @@ export default function PlansDashboard() {
                       className={
                         show.confirmation.status === "pending"
                           ? "bg-yellow-100 text-yellow-800"
+                          : show.confirmation.status === "failed" || show.confirmation.status === "complete_with_failures"
+                          ? "bg-red-100 text-red-800"
                           : "bg-green-100 text-green-800"
                       }
                     >
                       {show.confirmation.status}
                     </Badge>
+                    {show.confirmation.target_date && (
+                      <span className="text-xs text-muted-foreground">{show.confirmation.target_date}</span>
+                    )}
+                    {show.confirmation.adjusted && (
+                      <Badge variant="outline" className="text-xs bg-blue-100 text-blue-800">adjusted</Badge>
+                    )}
                   </div>
                   {show.confirmation.status === "pending" && (
                     <div className="flex gap-2">
@@ -241,7 +249,7 @@ export default function PlansDashboard() {
                       <div className="flex items-center gap-2">
                         <span className="font-medium">{g.name}</span>
                         {g.region && <Badge variant="outline" className="text-xs">{g.region}</Badge>}
-                        {g.type && <Badge variant="outline" className="text-xs">{g.type}</Badge>}
+                        {g.creator_type && <Badge variant="outline" className="text-xs">{g.creator_type}</Badge>}
                       </div>
                       <div className="flex items-center gap-2">
                         <span className="text-xs text-muted-foreground">
@@ -335,7 +343,7 @@ export default function PlansDashboard() {
           )}
 
           {/* Preview */}
-          {preview.length > 0 && (
+          {Object.keys(assignments).length > 0 && (
             <Card>
               <CardContent className="p-4 space-y-2">
                 <div className="flex items-center justify-between">
@@ -350,90 +358,57 @@ export default function PlansDashboard() {
                   </div>
                   <div className="flex gap-2 text-xs">
                     <span className="text-green-700">
-                      {preview.filter((a) => a.action === "post").length} posting
+                      {previewStats.posting} posting
                     </span>
                     <span className="text-muted-foreground">
-                      {preview.filter((a) => a.action === "rest").length} rest
+                      {previewStats.resting} rest
                     </span>
                     <span className="text-muted-foreground">
-                      {preview.filter((a) => a.action === "skip").length} skip
+                      {previewStats.unassigned} unassigned
                     </span>
                   </div>
                 </div>
 
-                {scope === "warmup" ? (
-                  Object.entries(byCohort).map(([cohortId, assignments]) => (
-                    <div key={cohortId} className="space-y-1">
-                      <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground pt-1">
-                        Cohort {cohortId}
-                        {assignments[0]?.cohort_day != null && ` — Day ${assignments[0].cohort_day}`}
-                      </p>
-                      {assignments.map((a) => (
-                        <div key={a.creator} className="flex items-center justify-between text-sm py-0.5">
-                          <div className="flex items-center gap-2">
-                            <span>{a.creator}</span>
-                            {a.region && <span className="text-xs text-muted-foreground">{a.region}</span>}
-                          </div>
-                          <Badge
-                            variant="outline"
-                            className={`text-xs ${
-                              a.action === "post"
-                                ? "bg-green-100 text-green-800"
-                                : a.action === "rest"
-                                ? "bg-gray-100 text-gray-800"
-                                : ""
-                            }`}
-                          >
-                            {a.action}
-                          </Badge>
+                {Object.entries(byGroup).map(([group, entries]) => (
+                  <div key={group} className="space-y-1">
+                    <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground pt-1">
+                      {group}
+                    </p>
+                    {entries.map(({ creator, assignment: a }) => (
+                      <div key={creator} className="flex items-center justify-between text-sm py-0.5">
+                        <div className="flex items-center gap-2">
+                          <span>{creator}</span>
+                          {a.region && <span className="text-xs text-muted-foreground">{a.region}</span>}
                         </div>
-                      ))}
-                    </div>
-                  ))
-                ) : (
-                  Object.entries(byGroup).map(([group, assignments]) => (
-                    <div key={group} className="space-y-1">
-                      <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground pt-1">
-                        {group}
-                      </p>
-                      {assignments.map((a) => (
-                        <div key={a.creator} className="flex items-center justify-between text-sm py-0.5">
-                          <div className="flex items-center gap-2">
-                            <span>{a.creator}</span>
-                            {a.region && <span className="text-xs text-muted-foreground">{a.region}</span>}
-                          </div>
-                          <Badge
-                            variant="outline"
-                            className={`text-xs ${
-                              a.action === "post"
-                                ? "bg-green-100 text-green-800"
-                                : a.action === "rest"
-                                ? "bg-gray-100 text-gray-800"
-                                : ""
-                            }`}
-                          >
-                            {a.action}
-                          </Badge>
-                        </div>
-                      ))}
-                    </div>
-                  ))
-                )}
+                        <Badge
+                          variant="outline"
+                          className={`text-xs ${
+                            a.action === "post"
+                              ? "bg-green-100 text-green-800"
+                              : "bg-gray-100 text-gray-800"
+                          }`}
+                        >
+                          {a.action}
+                        </Badge>
+                      </div>
+                    ))}
+                  </div>
+                ))}
               </CardContent>
             </Card>
           )}
 
-          {/* Queue warnings */}
-          {warnings.length > 0 && (
+          {/* Queue shortfalls */}
+          {shortfalls.length > 0 && (
             <Card>
               <CardContent className="p-4 space-y-2">
                 <div className="flex items-center gap-2">
                   <span className="text-sm font-medium">Queue Warnings</span>
                   <Badge variant="outline" className="bg-orange-100 text-orange-800">
-                    {warnings.length}
+                    {shortfalls.length}
                   </Badge>
                 </div>
-                {warnings.map((w, i) => (
+                {shortfalls.map((w, i) => (
                   <div key={i} className="flex items-center justify-between text-sm py-1 border-b last:border-0">
                     <div className="flex items-center gap-2">
                       <span>{w.creator}</span>
@@ -451,7 +426,7 @@ export default function PlansDashboard() {
           )}
 
           {/* Warmup cohorts summary */}
-          {scope === "warmup" && show.cohorts && show.cohorts.length > 0 && (
+          {scope === "warmup" && show.active_cohorts && show.active_cohorts.length > 0 && (
             <Card>
               <CardContent className="p-4 space-y-2">
                 <div className="flex items-center justify-between">
@@ -460,24 +435,19 @@ export default function PlansDashboard() {
                     Manage
                   </Link>
                 </div>
-                {show.cohorts.map((c) => (
+                {show.active_cohorts.map((c) => (
                   <div key={c.id} className="flex items-center justify-between text-sm py-1 border-b last:border-0">
                     <div className="flex items-center gap-2">
                       <span className="font-medium">{c.id}</span>
                       <Badge
                         variant="outline"
-                        className={`text-xs ${
-                          c.status === "in_progress"
-                            ? "bg-blue-100 text-blue-800"
-                            : "bg-green-100 text-green-800"
-                        }`}
+                        className="text-xs bg-blue-100 text-blue-800"
                       >
                         {c.status}
                       </Badge>
                     </div>
                     <span className="text-xs text-muted-foreground">
-                      {c.creators.length} creators
-                      {c.day != null && c.cycle_days != null && ` · Day ${c.day}/${c.cycle_days}`}
+                      {c.creators.length} creators · Day {c.current_day}
                     </span>
                   </div>
                 ))}

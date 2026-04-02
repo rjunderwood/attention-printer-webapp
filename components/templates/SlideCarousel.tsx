@@ -5,7 +5,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { SlideUpload } from "./SlideUpload";
-import { RefreshCw } from "lucide-react";
+import { Download, RefreshCw } from "lucide-react";
 import type { Slide } from "@/lib/types";
 
 const imageTypeBadge: Record<string, string> = {
@@ -73,7 +73,7 @@ function FixedImageWithReplace({
       <img
         src={imageUrl}
         alt={`Slide ${slideNum} fixed`}
-        className="w-full rounded-md object-cover max-h-48"
+        className="max-h-[400px] w-auto max-w-none rounded-md"
       />
       <Button
         variant="outline"
@@ -106,12 +106,21 @@ export function SlideCarousel({ slides, campaign, category, templateName, onUplo
 
             {/* Reference image */}
             {slide.image.has_reference_image && slide.image.reference_image_url && (
-              <div className="mb-2">
+              <div className="mb-2 space-y-2">
                 <img
                   src={slide.image.reference_image_url}
                   alt={`Slide ${slide.slide_number} reference`}
-                  className="w-full rounded-md object-cover max-h-48"
+                  className="max-h-[400px] w-auto max-w-none rounded-md"
                 />
+                <a
+                  href={slide.image.reference_image_url}
+                  download={`slide-${slide.slide_number}-reference.png`}
+                >
+                  <Button variant="outline" size="sm" className="min-h-[44px]">
+                    <Download className="size-3 mr-1" />
+                    Download reference
+                  </Button>
+                </a>
               </div>
             )}
 

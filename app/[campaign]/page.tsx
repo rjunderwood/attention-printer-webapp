@@ -9,10 +9,9 @@ import { StatusCard } from "@/components/layout/StatusCard";
 import { api } from "@/lib/api";
 import type {
   CampaignConfig,
-  PlanStatus,
-  PlanPreview,
-  ContentLevels,
-  HistoryEntry,
+  PlanNewShowResponse,
+  PlanNewPreviewResponse,
+  PlanNewQueueCheckResponse,
   OrchestratorStatus,
   Creator,
 } from "@/lib/types";
@@ -21,10 +20,9 @@ import { toast } from "sonner";
 export default function CampaignOverview() {
   const { campaign } = useParams<{ campaign: string }>();
   const [config, setConfig] = useState<CampaignConfig | null>(null);
-  const [status, setStatus] = useState<PlanStatus | null>(null);
-  const [contentLevels, setContentLevels] = useState<ContentLevels | null>(null);
-  const [history, setHistory] = useState<HistoryEntry[]>([]);
-  const [preview, setPreview] = useState<PlanPreview | null>(null);
+  const [show, setShow] = useState<PlanNewShowResponse | null>(null);
+  const [preview, setPreview] = useState<PlanNewPreviewResponse | null>(null);
+  const [queueCheck, setQueueCheck] = useState<PlanNewQueueCheckResponse | null>(null);
   const [orchestrator, setOrchestrator] = useState<OrchestratorStatus | null>(null);
   const [creators, setCreators] = useState<Creator[]>([]);
   const [loading, setLoading] = useState(true);
@@ -36,20 +34,18 @@ export default function CampaignOverview() {
 
   async function loadData() {
     try {
-      const [cfg, sts, prev, cl, hist, orch, crt] = await Promise.allSettled([
+      const [cfg, sh, prev, qc, orch, crt] = await Promise.allSettled([
         api.getConfig(campaign),
-        api.getStatus(campaign),
-        api.getPreview(campaign),
-        api.getContentLevels(campaign),
-        api.getHistory(campaign, 3),
+        api.getPlansNew(campaign, "active"),
+        api.getPlansNewPreview(campaign, "active"),
+        api.getPlansNewQueueCheck(campaign, "active"),
         api.getOrchestratorStatus(),
         api.getCreators(campaign),
       ]);
       if (cfg.status === "fulfilled") setConfig(cfg.value);
-      if (sts.status === "fulfilled") setStatus(sts.value);
+      if (sh.status === "fulfilled") setShow(sh.value);
       if (prev.status === "fulfilled") setPreview(prev.value);
-      if (cl.status === "fulfilled") setContentLevels(cl.value);
-      if (hist.status === "fulfilled") setHistory(hist.value.history);
+      if (qc.status === "fulfilled") setQueueCheck(qc.value);
       if (orch.status === "fulfilled") setOrchestrator(orch.value);
       if (crt.status === "fulfilled") setCreators(crt.value.creators);
     } catch (err) {
@@ -62,7 +58,7 @@ export default function CampaignOverview() {
   async function handleConfirm() {
     setConfirming(true);
     try {
-      await api.confirmPlan(campaign);
+      await api.confirmPlansNew(campaign, "active");
       toast.success("Plan confirmed");
       loadData();
     } catch (err) {
@@ -88,9 +84,9 @@ export default function CampaignOverview() {
         <h2 className="text-base font-medium">{config.product}</h2>
       )}
 
-      {status && (
+      {show && (
         <StatusCard
-          status={status}
+          show={show}
           onConfirm={handleConfirm}
           loading={confirming}
         />
@@ -102,31 +98,31 @@ export default function CampaignOverview() {
             <div className="flex items-center justify-between">
               <span className="text-sm font-medium">Today&apos;s Summary</span>
               <Link
-                href={`/${campaign}/plan`}
+                href={`/${campaign}/plans`}
                 className="text-xs text-muted-foreground"
               >
                 Edit plan
               </Link>
             </div>
             <p className="text-sm text-muted-foreground mt-1">
-              {preview.posting} posting · {preview.resting} resting · {preview.paused} paused
+              {preview.posting} posting · {preview.resting} resting · {preview.unassigned} unassigned
             </p>
           </CardContent>
         </Card>
       )}
 
-      {contentLevels && contentLevels.total_issues > 0 && (
-        <Link href={`/${campaign}/content`}>
+      {queueCheck && queueCheck.total_shortfalls > 0 && (
+        <Link href={`/${campaign}/plans`}>
           <Card className="hover:bg-accent/50 transition-colors">
             <CardContent className="p-4">
               <div className="flex items-center justify-between">
                 <span className="text-sm font-medium">Content Warnings</span>
                 <Badge variant="outline" className="bg-orange-100 text-orange-800">
-                  {contentLevels.total_issues}
+                  {queueCheck.total_shortfalls}
                 </Badge>
               </div>
               <p className="text-sm text-muted-foreground mt-1">
-                {contentLevels.exhausted.length} exhausted · {contentLevels.low.length} low
+                {queueCheck.shortfalls.length} creator{queueCheck.shortfalls.length !== 1 ? "s" : ""} with content shortfalls
               </p>
             </CardContent>
           </Card>
@@ -192,37 +188,6 @@ export default function CampaignOverview() {
           </Link>
         );
       })()}
-
-      {history.length > 0 && (
-        <Card>
-          <CardContent className="p-4 space-y-2">
-            <div className="flex items-center justify-between">
-              <span className="text-sm font-medium">Recent History</span>
-              <Link
-                href={`/${campaign}/history`}
-                className="text-xs text-muted-foreground"
-              >
-                View all
-              </Link>
-            </div>
-            {history.map((entry) => (
-              <div
-                key={entry.date}
-                className="flex items-center justify-between text-sm py-1 border-b last:border-0"
-              >
-                <span>{entry.date}</span>
-                <div className="flex gap-2 text-xs">
-                  <span className="text-green-700">{entry.summary.posted} posted</span>
-                  {entry.summary.failed > 0 && (
-                    <span className="text-red-600">{entry.summary.failed} failed</span>
-                  )}
-                  <span className="text-muted-foreground">{entry.summary.resting} rest</span>
-                </div>
-              </div>
-            ))}
-          </CardContent>
-        </Card>
-      )}
 
       {orchestrator && (
         <Card>

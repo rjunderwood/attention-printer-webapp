@@ -1,11 +1,13 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useParams } from "next/navigation";
 import { api } from "@/lib/api";
 import type { TemplateListItem, TemplateCategory } from "@/lib/types";
 import { TemplateCard } from "@/components/templates/TemplateCard";
 import { Badge } from "@/components/ui/badge";
+import { Input } from "@/components/ui/input";
+import { Search } from "lucide-react";
 import { toast } from "sonner";
 
 type StatusFilter = "pending" | "active" | "all";
@@ -17,6 +19,7 @@ export default function TemplatesPage() {
   const [loading, setLoading] = useState(true);
   const [statusFilter, setStatusFilter] = useState<StatusFilter>("pending");
   const [categoryFilter, setCategoryFilter] = useState<CategoryFilter>("all");
+  const [search, setSearch] = useState("");
 
   useEffect(() => {
     async function load() {
@@ -48,6 +51,12 @@ export default function TemplatesPage() {
     { label: "UGC Video", value: "ugc_video" },
   ];
 
+  const filtered = useMemo(() => {
+    if (!search.trim()) return templates;
+    const q = search.toLowerCase();
+    return templates.filter((t) => t.name.toLowerCase().includes(q));
+  }, [templates, search]);
+
   return (
     <div className="space-y-4">
       {/* Status tabs */}
@@ -65,6 +74,17 @@ export default function TemplatesPage() {
             {tab.label}
           </button>
         ))}
+      </div>
+
+      {/* Search */}
+      <div className="relative">
+        <Search className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-muted-foreground" />
+        <Input
+          placeholder="Search templates..."
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+          className="pl-9"
+        />
       </div>
 
       {/* Category filter chips */}
@@ -88,13 +108,13 @@ export default function TemplatesPage() {
             <div key={i} className="h-20 bg-muted rounded-lg" />
           ))}
         </div>
-      ) : templates.length === 0 ? (
+      ) : filtered.length === 0 ? (
         <p className="text-sm text-muted-foreground py-8 text-center">
-          No {statusFilter === "all" ? "" : statusFilter} templates found
+          No {statusFilter === "all" ? "" : statusFilter} templates found{search ? ` matching "${search}"` : ""}
         </p>
       ) : (
         <div className="space-y-3">
-          {templates.map((t) => (
+          {filtered.map((t) => (
             <TemplateCard key={`${t.category}/${t.name}`} template={t} campaign={campaign} />
           ))}
         </div>

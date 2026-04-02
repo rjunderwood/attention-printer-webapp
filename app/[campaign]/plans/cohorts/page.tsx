@@ -135,9 +135,9 @@ export default function CohortsPage() {
                   <Badge variant="outline" className="bg-blue-100 text-blue-800 text-xs">
                     in progress
                   </Badge>
-                  {c.day != null && c.cycle_days != null && (
+                  {c.current_day != null && (
                     <span className="text-xs text-muted-foreground">
-                      Day {c.day}/{c.cycle_days}
+                      Day {c.current_day}
                     </span>
                   )}
                 </div>

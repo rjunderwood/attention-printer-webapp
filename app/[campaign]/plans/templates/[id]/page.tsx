@@ -45,13 +45,12 @@ export default function TemplateDetailPage() {
   // Clone form
   const [showClone, setShowClone] = useState(false);
   const [cloneName, setCloneName] = useState("");
-  const [cloneCycle, setCloneCycle] = useState<number | undefined>();
 
   async function loadTemplate() {
     setLoading(true);
     try {
       const data = await api.getPlansNewTemplate(campaign, id, scope);
-      setTemplate(data);
+      setTemplate(data.template);
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Failed to load template");
     } finally {
@@ -85,7 +84,7 @@ export default function TemplateDetailPage() {
         group.content = groupContent.filter((c) => c.content_category && c.content_type);
       }
       if (groupRegion) group.region = groupRegion;
-      if (groupType) group.type = groupType;
+      if (groupType) group.creator_type = groupType;
       if (groupCreators) group.creators = groupCreators.split(",").map((s) => s.trim()).filter(Boolean);
       if (groupCount != null && groupCount > 0) group.count = groupCount;
 
@@ -136,16 +135,13 @@ export default function TemplateDetailPage() {
     if (!cloneName.trim()) return;
     setCloning(true);
     try {
-      const body: { scope: string; name: string; cycle?: number } = {
+      await api.clonePlansNewTemplate(campaign, id, {
         scope,
         name: cloneName.trim(),
-      };
-      if (cloneCycle != null) body.cycle = cloneCycle;
-      await api.clonePlansNewTemplate(campaign, id, body);
+      });
       toast.success("Template cloned");
       setShowClone(false);
       setCloneName("");
-      setCloneCycle(undefined);
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Failed to clone");
     } finally {
@@ -167,7 +163,7 @@ export default function TemplateDetailPage() {
     return <p className="text-sm text-muted-foreground">Template not found.</p>;
   }
 
-  const currentDay = template.days?.find((d) => d.day === activeDay);
+  const currentDay = template.days?.[String(activeDay)];
 
   return (
     <div className="space-y-4">
@@ -225,16 +221,6 @@ export default function TemplateDetailPage() {
               onChange={(e) => setCloneName(e.target.value)}
               className="h-10"
             />
-            <div className="flex gap-3 items-center">
-              <label className="text-sm text-muted-foreground">Cycle (optional):</label>
-              <Input
-                type="number"
-                min={1}
-                value={cloneCycle ?? ""}
-                onChange={(e) => setCloneCycle(e.target.value ? Number(e.target.value) : undefined)}
-                className="h-10 w-20"
-              />
-            </div>
             <Button size="sm" disabled={cloning || !cloneName.trim()} onClick={handleClone}>
               {cloning ? "Cloning..." : "Clone"}
             </Button>
@@ -260,7 +246,7 @@ export default function TemplateDetailPage() {
       </div>
 
       {/* Day groups */}
-      {currentDay && currentDay.groups.length > 0 ? (
+      {currentDay && currentDay.groups && currentDay.groups.length > 0 ? (
         <div className="space-y-2">
           {currentDay.groups.map((g) => (
             <div
@@ -271,7 +257,7 @@ export default function TemplateDetailPage() {
                 <div className="flex items-center gap-2">
                   <span className="text-sm font-medium">{g.name}</span>
                   {g.region && <Badge variant="outline" className="text-xs">{g.region}</Badge>}
-                  {g.type && <Badge variant="outline" className="text-xs">{g.type}</Badge>}
+                  {g.creator_type && <Badge variant="outline" className="text-xs">{g.creator_type}</Badge>}
                   {g.count != null && <Badge variant="outline" className="text-xs">count: {g.count}</Badge>}
                   {g.rest && <Badge variant="outline" className="bg-gray-100 text-gray-800 text-xs">REST</Badge>}
                 </div>
@@ -286,7 +272,7 @@ export default function TemplateDetailPage() {
                       setGroupRest(!!g.rest);
                       setGroupContent(g.content && g.content.length > 0 ? [...g.content] : [{ content_category: "", content_type: "" }]);
                       setGroupRegion(g.region || "");
-                      setGroupType(g.type || "");
+                      setGroupType(g.creator_type || "");
                       setGroupCreators(g.creators?.join(", ") || "");
                       setGroupCount(g.count);
                     }}

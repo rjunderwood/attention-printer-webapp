@@ -27,15 +27,18 @@ async function proxyRequest(req: NextRequest, { params }: { params: Promise<{ pa
   if (req.method !== "GET" && !isMultipart) {
     headers["Content-Type"] = "application/json";
   }
+  if (isMultipart) {
+    headers["Content-Type"] = contentType;
+  }
   if (PIPELINE_KEY) {
     headers["Authorization"] = `Bearer ${PIPELINE_KEY}`;
   }
 
   try {
-    let body: string | FormData | undefined;
+    let body: ArrayBuffer | string | undefined;
     if (req.method !== "GET") {
       if (isMultipart) {
-        body = await req.formData();
+        body = await req.arrayBuffer();
       } else {
         body = await req.text();
       }
@@ -69,3 +72,4 @@ async function proxyRequest(req: NextRequest, { params }: { params: Promise<{ pa
 
 export const GET = proxyRequest;
 export const POST = proxyRequest;
+export const DELETE = proxyRequest;

@@ -22,43 +22,6 @@ export const api = {
   getConfig: (campaign: string) =>
     request<import("./types").CampaignConfig>(`/${campaign}/config`),
 
-  getPlan: (campaign: string) =>
-    request<import("./types").PlanResponse>(`/${campaign}/plan`),
-
-  setPlanGroup: (campaign: string, body: import("./types").PlanSetRequest) =>
-    request<{ message: string; plan: import("./types").Plan }>(
-      `/${campaign}/plan/set`,
-      { method: "POST", body: JSON.stringify(body) }
-    ),
-
-  removeGroup: (campaign: string, group: string) =>
-    request<{ message: string; plan: import("./types").Plan }>(
-      `/${campaign}/plan/remove-group`,
-      { method: "POST", body: JSON.stringify({ group }) }
-    ),
-
-  resetPlan: (campaign: string) =>
-    request<{ message: string; plan: import("./types").Plan }>(
-      `/${campaign}/plan/reset`,
-      { method: "POST" }
-    ),
-
-  getPreview: (campaign: string, date?: string) => {
-    const params = date ? `?date=${date}` : "";
-    return request<import("./types").PlanPreview>(
-      `/${campaign}/plan/preview${params}`
-    );
-  },
-
-  getStatus: (campaign: string) =>
-    request<import("./types").PlanStatus>(`/${campaign}/plan/status`),
-
-  confirmPlan: (campaign: string, refresh?: boolean) =>
-    request<{ message: string }>(`/${campaign}/plan/confirm`, {
-      method: "POST",
-      body: JSON.stringify(refresh ? { refresh: true } : {}),
-    }),
-
   getCreators: (campaign: string) =>
     request<import("./types").CreatorsResponse>(`/${campaign}/creators`),
 
@@ -86,9 +49,6 @@ export const api = {
 
   getHistoryDetail: (campaign: string, date: string) =>
     request<import("./types").HistoryDetail>(`/${campaign}/history?date=${date}`),
-
-  getContentLevels: (campaign: string) =>
-    request<import("./types").ContentLevels>(`/${campaign}/content-levels`),
 
   getFailures: (campaign: string) =>
     request<import("./types").FailuresResponse>(`/${campaign}/failures`),
@@ -187,103 +147,103 @@ export const api = {
 
   getPlansNew: (campaign: string, scope: string) =>
     request<import("./types").PlanNewShowResponse>(
-      `/${campaign}/plans_new/show?scope=${scope}`
+      `/${campaign}/plan/show?scope=${scope}`
     ),
 
   getPlansNewPreview: (campaign: string, scope: string, date?: string) => {
     const params = new URLSearchParams({ scope });
     if (date) params.set("date", date);
     return request<import("./types").PlanNewPreviewResponse>(
-      `/${campaign}/plans_new/preview?${params}`
+      `/${campaign}/plan/preview?${params}`
     );
   },
 
   confirmPlansNew: (campaign: string, scope: string, refresh?: boolean) =>
-    request<{ message: string }>(`/${campaign}/plans_new/confirm`, {
+    request<{ message: string }>(`/${campaign}/plan/confirm`, {
       method: "POST",
       body: JSON.stringify({ scope, ...(refresh ? { refresh: true } : {}) }),
     }),
 
   adjustPlansNew: (campaign: string, body: { scope: string; group: string; content?: import("./types").PlanNewContentItem[]; region?: string }) =>
-    request<{ message: string }>(`/${campaign}/plans_new/adjust`, {
+    request<{ message: string; adjusted_groups: import("./types").PlanNewGroup[] }>(`/${campaign}/plan/adjust`, {
       method: "POST",
       body: JSON.stringify(body),
     }),
 
   getPlansNewQueueCheck: (campaign: string, scope: string) =>
     request<import("./types").PlanNewQueueCheckResponse>(
-      `/${campaign}/plans_new/queue-check?scope=${scope}`
+      `/${campaign}/plan/queue-check?scope=${scope}`
     ),
 
   getPlansNewTemplates: (campaign: string, scope: string) =>
     request<{ templates: import("./types").PlanNewTemplate[] }>(
-      `/${campaign}/plans_new/templates?scope=${scope}`
+      `/${campaign}/plan/templates?scope=${scope}`
     ),
 
   createPlansNewTemplate: (campaign: string, body: { scope: string; name: string; cycle_days: number; auto_rest: boolean }) =>
-    request<import("./types").PlanNewTemplate>(`/${campaign}/plans_new/templates`, {
+    request<{ message: string; template: import("./types").PlanNewTemplate }>(`/${campaign}/plan/templates`, {
       method: "POST",
       body: JSON.stringify(body),
     }),
 
   getPlansNewTemplate: (campaign: string, id: string, scope: string) =>
-    request<import("./types").PlanNewTemplate>(
-      `/${campaign}/plans_new/templates/${id}?scope=${scope}`
+    request<{ template: import("./types").PlanNewTemplate }>(
+      `/${campaign}/plan/templates/${id}?scope=${scope}`
     ),
 
   setPlansNewTemplateDay: (campaign: string, id: string, body: { scope: string; day: number; group: import("./types").PlanNewGroup }) =>
-    request<{ message: string }>(`/${campaign}/plans_new/templates/${id}/set-day`, {
+    request<{ message: string; template: import("./types").PlanNewTemplate }>(`/${campaign}/plan/templates/${id}/set-day`, {
       method: "POST",
       body: JSON.stringify(body),
     }),
 
   removePlansNewTemplateGroup: (campaign: string, id: string, body: { scope: string; day: number; group_name: string }) =>
-    request<{ message: string }>(`/${campaign}/plans_new/templates/${id}/remove-group`, {
+    request<{ message: string; template: import("./types").PlanNewTemplate }>(`/${campaign}/plan/templates/${id}/remove-group`, {
       method: "POST",
       body: JSON.stringify(body),
     }),
 
   validatePlansNewTemplate: (campaign: string, id: string, scope: string) =>
     request<import("./types").PlanNewTemplateValidation>(
-      `/${campaign}/plans_new/templates/${id}/validate?scope=${scope}`
+      `/${campaign}/plan/templates/${id}/validate?scope=${scope}`
     ),
 
   activatePlansNewTemplate: (campaign: string, scope: string, templateId: string) =>
-    request<{ message: string }>(`/${campaign}/plans_new/activate`, {
+    request<{ message: string; cycle_days: number }>(`/${campaign}/plan/activate`, {
       method: "POST",
       body: JSON.stringify({ scope, template_id: templateId }),
     }),
 
   deactivatePlansNewTemplate: (campaign: string, scope: string) =>
-    request<{ message: string }>(`/${campaign}/plans_new/deactivate`, {
+    request<{ message: string }>(`/${campaign}/plan/deactivate`, {
       method: "POST",
       body: JSON.stringify({ scope }),
     }),
 
   deletePlansNewTemplate: (campaign: string, id: string, scope: string) =>
-    request<{ message: string }>(`/${campaign}/plans_new/templates/${id}?scope=${scope}`, {
+    request<{ message: string }>(`/${campaign}/plan/templates/${id}?scope=${scope}`, {
       method: "DELETE",
     }),
 
-  clonePlansNewTemplate: (campaign: string, id: string, body: { scope: string; name: string; cycle?: number }) =>
-    request<import("./types").PlanNewTemplate>(`/${campaign}/plans_new/templates/${id}/clone`, {
+  clonePlansNewTemplate: (campaign: string, id: string, body: { scope: string; name: string }) =>
+    request<{ message: string; template: import("./types").PlanNewTemplate; adjustments_applied: number }>(`/${campaign}/plan/templates/${id}/clone`, {
       method: "POST",
       body: JSON.stringify(body),
     }),
 
   getPlansNewCohorts: (campaign: string) =>
-    request<{ cohorts: import("./types").PlanNewCohort[] }>(
-      `/${campaign}/plans_new/cohorts`
+    request<import("./types").PlanNewCohortsResponse>(
+      `/${campaign}/plan/cohorts`
     ),
 
   addPlansNewCohort: (campaign: string, creators: string[]) =>
-    request<import("./types").PlanNewCohort>(`/${campaign}/plans_new/cohorts`, {
+    request<{ message: string; cohort: import("./types").PlanNewCohort; warnings: string[] }>(`/${campaign}/plan/cohorts`, {
       method: "POST",
       body: JSON.stringify({ creators }),
     }),
 
   deletePlansNewCohort: (campaign: string, id: string) =>
-    request<{ message: string }>(`/${campaign}/plans_new/cohorts/${id}`, {
+    request<{ message: string }>(`/${campaign}/plan/cohorts/${id}`, {
       method: "DELETE",
     }),
 
@@ -292,18 +252,18 @@ export const api = {
     if (days) params.set("days", String(days));
     if (date) params.set("date", date);
     return request<import("./types").PlanNewHistoryResponse>(
-      `/${campaign}/plans_new/history?${params}`
+      `/${campaign}/plan/history?${params}`
     );
   },
 
   getPlansNewAdjustments: (campaign: string, scope: string) =>
     request<{ adjustments: import("./types").PlanNewAdjustment[] }>(
-      `/${campaign}/plans_new/adjustments?scope=${scope}`
+      `/${campaign}/plan/adjustments?scope=${scope}`
     ),
 
   getPlansNewTemplateHistory: (campaign: string, scope: string) =>
     request<{ entries: import("./types").PlanNewTemplateHistoryEntry[] }>(
-      `/${campaign}/plans_new/template-history?scope=${scope}`
+      `/${campaign}/plan/template-history?scope=${scope}`
     ),
 
   uploadClip: async (campaign: string, name: string, file: File, filename: string) => {

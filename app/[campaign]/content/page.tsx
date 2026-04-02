@@ -4,26 +4,23 @@ import { useEffect, useState } from "react";
 import { useParams } from "next/navigation";
 import { Badge } from "@/components/ui/badge";
 import { api } from "@/lib/api";
-import type { ContentLevels, CampaignConfig, ContentLevelEntry } from "@/lib/types";
+import type { PlanNewShortfall } from "@/lib/types";
 import { toast } from "sonner";
 
 export default function ContentPage() {
   const { campaign } = useParams<{ campaign: string }>();
-  const [levels, setLevels] = useState<ContentLevels | null>(null);
-  const [config, setConfig] = useState<CampaignConfig | null>(null);
+  const [shortfalls, setShortfalls] = useState<PlanNewShortfall[]>([]);
+  const [date, setDate] = useState<string>("");
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     async function load() {
       try {
-        const [cl, cfg] = await Promise.all([
-          api.getContentLevels(campaign),
-          api.getConfig(campaign),
-        ]);
-        setLevels(cl);
-        setConfig(cfg);
+        const data = await api.getPlansNewQueueCheck(campaign, "active");
+        setShortfalls(data.shortfalls);
+        setDate(data.date);
       } catch (err) {
-        toast.error(err instanceof Error ? err.message : "Failed to load content levels");
+        toast.error(err instanceof Error ? err.message : "Failed to load queue check");
       } finally {
         setLoading(false);
       }
@@ -41,79 +38,44 @@ export default function ContentPage() {
     );
   }
 
-  if (!levels) return null;
-
-  // Group all entries by text_type
-  const allEntries: (ContentLevelEntry & { severity: "exhausted" | "low" })[] = [
-    ...levels.exhausted.map((e) => ({ ...e, severity: "exhausted" as const })),
-    ...levels.low.map((e) => ({ ...e, severity: "low" as const })),
-  ];
-
-  const byType = allEntries.reduce(
+  // Group shortfalls by content_type
+  const byType = shortfalls.reduce(
     (acc, entry) => {
-      if (!acc[entry.text_type]) acc[entry.text_type] = [];
-      acc[entry.text_type].push(entry);
+      const key = `${entry.content_category}/${entry.content_type}`;
+      if (!acc[key]) acc[key] = [];
+      acc[key].push(entry);
       return acc;
     },
-    {} as Record<string, typeof allEntries>
+    {} as Record<string, PlanNewShortfall[]>
   );
-
-  // Sort entries within each type by remaining ascending
-  for (const entries of Object.values(byType)) {
-    entries.sort((a, b) => a.remaining - b.remaining);
-  }
 
   return (
     <div className="space-y-4">
       <div className="flex items-center gap-3">
-        {levels.exhausted.length > 0 && (
+        {shortfalls.length > 0 ? (
           <Badge className="bg-red-500 text-white">
-            {levels.exhausted.length} exhausted
+            {shortfalls.length} shortfall{shortfalls.length !== 1 ? "s" : ""}
           </Badge>
+        ) : (
+          <p className="text-sm text-green-700">All content queues healthy</p>
         )}
-        {levels.low.length > 0 && (
-          <Badge className="bg-yellow-500 text-white">
-            {levels.low.length} low
-          </Badge>
-        )}
-        {levels.total_issues === 0 && (
-          <p className="text-sm text-green-700">All content levels healthy</p>
+        {date && (
+          <span className="text-xs text-muted-foreground">for {date}</span>
         )}
       </div>
 
-      {config && (
-        <p className="text-xs text-muted-foreground">
-          Threshold: {levels.threshold} posts
-        </p>
-      )}
-
-      {Object.entries(byType).map(([textType, entries]) => (
-        <div key={textType} className="space-y-1">
-          <h3 className="text-sm font-medium">{textType}</h3>
+      {Object.entries(byType).map(([contentKey, entries]) => (
+        <div key={contentKey} className="space-y-1">
+          <h3 className="text-sm font-medium">{contentKey}</h3>
           {entries.map((entry, i) => (
             <div
               key={i}
-              className={`flex items-center justify-between rounded-md px-3 py-2 text-sm ${
-                entry.severity === "exhausted"
-                  ? "bg-red-50 border border-red-200"
-                  : "bg-yellow-50 border border-yellow-200"
-              }`}
+              className="flex items-center justify-between rounded-md px-3 py-2 text-sm bg-red-50 border border-red-200"
             >
-              <div className="truncate">
-                <span className="font-medium">{entry.creator}</span>
-                <span className="text-muted-foreground ml-2 text-xs">
-                  {entry.text_pack}
-                </span>
-              </div>
-              <Badge
-                className={
-                  entry.remaining === 0
-                    ? "bg-red-500 text-white"
-                    : "bg-yellow-500 text-white"
-                }
-              >
-                {entry.remaining}
-              </Badge>
+              <span className="font-medium">{entry.creator}</span>
+              <span className="text-xs text-red-600">
+                {entry.available}/{entry.needed} available
+              </span>
             </div>
           ))}
         </div>
